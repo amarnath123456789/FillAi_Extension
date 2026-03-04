@@ -1,0 +1,5 @@
+{
+  "name": "QuickFill Extension Simulator",
+  "description": "A simulation of the QuickFill browser extension that uses AI to fill out complex form fields based on your personal profile.",
+  "requestFramePermissions": []
+}
