@@ -71,7 +71,7 @@ export function OptionsPage() {
       <div className="h-0.5 w-full" style={{ background: 'linear-gradient(90deg, transparent, rgba(139,92,246,0.8) 30%, rgba(99,102,241,0.8) 70%, transparent)' }} />
 
       {/* Sticky header */}
-      <div className="sticky top-0 z-20 px-6 py-4 flex items-center justify-between"
+      <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6"
         style={{ background: 'rgba(10,8,28,0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
@@ -84,7 +84,7 @@ export function OptionsPage() {
           </div>
         </div>
         <button onClick={onSave}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold transition-all duration-200"
+          className="flex items-center gap-2 rounded-xl px-4 py-2 text-[13px] font-semibold transition-all duration-200"
           style={saved
             ? { background: 'linear-gradient(135deg,#059669,#10b981)', color: 'white', boxShadow: '0 0 16px rgba(16,185,129,0.4)' }
             : { background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: 'white', boxShadow: '0 0 16px rgba(124,58,237,0.35)' }
@@ -94,14 +94,14 @@ export function OptionsPage() {
       </div>
 
       {/* Content */}
-      <div className="max-w-2xl mx-auto px-6 py-8">
+      <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-8 p-1 rounded-xl w-fit"
+        <div className="mb-6 flex w-full gap-1 overflow-x-auto rounded-xl p-1 sm:mb-8"
           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`px-4 py-2 rounded-lg text-[12px] font-semibold transition-all duration-150 ${tab === t.id ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+              className={`whitespace-nowrap rounded-lg px-3 py-2 text-[12px] font-semibold transition-all duration-150 sm:px-4 ${tab === t.id ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
               style={tab === t.id ? { background: 'linear-gradient(135deg,rgba(99,102,241,0.3),rgba(124,58,237,0.2))', border: '1px solid rgba(139,92,246,0.4)', boxShadow: '0 0 10px rgba(124,58,237,0.2)' } : { border: '1px solid transparent' }}>
               {t.label}
             </button>
@@ -109,7 +109,7 @@ export function OptionsPage() {
         </div>
 
         {/* Panel */}
-        <div className="rounded-2xl p-6 space-y-5"
+        <div className="space-y-5 rounded-2xl p-4 sm:p-6"
           style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
 
           {saveError && (
@@ -125,7 +125,7 @@ export function OptionsPage() {
             <div className="grid grid-cols-1 gap-4">
               <div><Label text="Full Name" /><Inp name="fullName" value={profile.fullName} onChange={onChange} placeholder="John Doe" /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div><Label text="Email" /><Inp type="email" name="email" value={profile.email} onChange={onChange} placeholder="john@example.com" /></div>
               <div><Label text="Phone" /><Inp type="tel" name="phone" value={profile.phone} onChange={onChange} placeholder="+1 (555) 000-0000" /></div>
               <div><Label text="Date of Birth" /><Inp type="date" name="dob" value={profile.dob} onChange={onChange} className="text-gray-300" /></div>
@@ -134,7 +134,7 @@ export function OptionsPage() {
           </>}
 
           {tab === 'professional' && <>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div><Label text="Current Role" /><Inp name="currentRole" value={profile.currentRole} onChange={onChange} placeholder="Senior Frontend Engineer" /></div>
               <div><Label text="Years of Experience" /><Inp name="yearsOfExperience" value={profile.yearsOfExperience} onChange={onChange} placeholder="5 years" /></div>
               <div><Label text="Education" /><Inp name="education" value={profile.education} onChange={onChange} placeholder="B.S. Computer Science — MIT, 2019" /></div>
@@ -147,7 +147,7 @@ export function OptionsPage() {
 
           {tab === 'links' && <>
             <div><Label text="LinkedIn" /><Inp type="url" name="linkedin" value={profile.linkedin} onChange={onChange} placeholder="https://linkedin.com/in/johndoe" /></div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div><Label text="GitHub" /><Inp type="url" name="github" value={profile.github} onChange={onChange} placeholder="https://github.com/johndoe" /></div>
               <div><Label text="Portfolio / Website" /><Inp type="url" name="portfolio" value={profile.portfolio} onChange={onChange} placeholder="https://johndoe.com" /></div>
             </div>

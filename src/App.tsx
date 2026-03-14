@@ -12,9 +12,9 @@ export default function App() {
 
   return (
     <ProfileProvider>
-    <div className="flex h-screen w-full bg-black overflow-hidden font-sans text-white">
+    <div className="flex h-screen w-full flex-col bg-black font-sans text-white lg:flex-row">
       {/* Left Pane: The "Web Page" */}
-      <div className="flex-1 relative border-r border-white/10 shadow-2xl z-10 flex flex-col bg-[#050505]">
+      <div className="relative z-10 flex min-h-[46vh] flex-1 flex-col border-b border-white/10 bg-[#050505] shadow-2xl lg:min-h-0 lg:border-b-0 lg:border-r">
         <div className="bg-[#0a0a0a] border-b border-white/10 p-3 flex items-center gap-3 z-20 shrink-0">
           <div className="flex gap-1.5">
             <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
@@ -32,7 +32,7 @@ export default function App() {
 
       {/* Right Pane: Extension Simulator */}
       <div
-        className="w-[460px] flex flex-col shrink-0 relative"
+        className="relative flex h-[54vh] w-full shrink-0 flex-col lg:h-full lg:w-[460px]"
         style={{ background: 'linear-gradient(180deg, #07061a 0%, #050412 100%)' }}
       >
         {/* Deep ambient glows */}
@@ -75,7 +75,7 @@ export default function App() {
         </div>
 
         {/* Content */}
-        <div className={`flex-1 relative z-10 ${viewMode === 'options' ? 'overflow-y-auto' : 'overflow-hidden flex items-center justify-center px-6 py-8'}`}>
+        <div className={`relative z-10 flex-1 ${viewMode === 'options' ? 'overflow-y-auto' : 'flex items-center justify-center overflow-hidden px-4 py-6 lg:px-6 lg:py-8'}`}>
           {viewMode === 'popup' ? (
             <PopupPage onOptionsClick={() => setViewMode('options')} />
           ) : (

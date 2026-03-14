@@ -1,71 +1,81 @@
 export function PopupPage({ onOptionsClick }: { onOptionsClick?: () => void }) {
+  const featureBadges = [
+    { icon: '⚡', label: 'Auto-fill forms', color: '#a78bfa' },
+    { icon: '✨', label: 'AI-powered', color: '#818cf8' },
+    { icon: '🔒', label: 'Stored locally', color: '#4ade80' },
+    { icon: '🌐', label: 'Any website', color: '#38bdf8' },
+  ];
+
   return (
     <div
-      className="flex flex-col bg-[#080918] text-white"
-      style={{ width: 380, height: 520, display: 'flex', flexDirection: 'column', backgroundColor: '#080918', color: '#fff', fontFamily: 'Inter, system-ui, sans-serif' }}
+      className="relative flex h-full w-full min-h-[440px] flex-col overflow-hidden bg-[#080918] text-white"
+      style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
     >
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 26, height: 26, background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>
+      <div className="pointer-events-none absolute -top-24 left-1/2 h-60 w-60 -translate-x-1/2 rounded-full bg-violet-600/15 blur-3xl" />
+
+      <header className="relative z-10 flex items-center justify-between border-b border-white/10 px-4 py-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 text-[13px] shadow-[0_0_18px_rgba(124,58,237,0.35)]">
             ⚡
           </div>
-          <span style={{ fontWeight: 700, fontSize: 13, color: '#fff' }}>FillAI</span>
-          <span style={{ color: '#4ade80', fontSize: 11 }}>● Active</span>
+          <div>
+            <p className="text-[13px] font-bold tracking-tight text-white">FillAI</p>
+            <p className="text-[11px] text-emerald-400">Active on this page</p>
+          </div>
         </div>
         <button
           onClick={onOptionsClick}
           title="Open Settings"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', fontSize: 15, padding: '3px 5px', borderRadius: 6, lineHeight: 1, transition: 'color 0.15s' }}
-          onMouseEnter={e => (e.currentTarget.style.color = '#d1d5db')}
-          onMouseLeave={e => (e.currentTarget.style.color = '#6b7280')}
+          className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[12px] font-semibold text-gray-300 transition-colors hover:text-white"
         >
-          ⚙
+          Settings
         </button>
-      </div>
+      </header>
 
-      {/* Hero */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 20px', textAlign: 'center', gap: 0 }}>
-        {/* Avatar */}
-        <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, marginBottom: 12 }}>
+      <main className="relative z-10 flex flex-1 flex-col overflow-y-auto px-4 pb-4 pt-5 custom-scrollbar">
+        <section className="rounded-2xl border border-violet-400/20 bg-gradient-to-b from-violet-500/10 to-indigo-500/5 p-4 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-violet-300/30 bg-violet-400/15 text-[22px]">
           👤
-        </div>
+          </div>
+          <h2 className="mb-1 text-[15px] font-bold text-white">No profile set up yet</h2>
+          <p className="text-[12px] leading-relaxed text-gray-300">Set up once, then fill forms instantly across job, signup, and support pages.</p>
+        </section>
 
-        <h2 style={{ fontSize: 14, fontWeight: 700, color: '#fff', margin: '0 0 5px' }}>
-          No profile set up yet
-        </h2>
-        <p style={{ fontSize: 12, color: '#9ca3af', margin: '0 0 20px' }}>
-          Set up once, fill any form instantly
-        </p>
-
-        {/* Feature badges grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7, width: '100%', marginBottom: 18 }}>
-          {[
-            { icon: '⚡', label: 'Auto-fill forms',  color: '#a78bfa' },
-            { icon: '✨', label: 'AI-powered',        color: '#818cf8' },
-            { icon: '🔒', label: 'Stored locally',   color: '#4ade80' },
-            { icon: '🌐', label: 'Any website',       color: '#38bdf8' },
-          ].map(({ icon, label, color }) => (
+        <section className="mt-4 grid grid-cols-2 gap-2">
+          {featureBadges.map(({ icon, label, color }) => (
             <div
               key={label}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', borderRadius: 9, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+              className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-2"
             >
-              <span style={{ fontSize: 13 }}>{icon}</span>
-              <span style={{ fontSize: 11, color, fontWeight: 500 }}>{label}</span>
+              <span className="text-[13px]">{icon}</span>
+              <span className="text-[11px] font-semibold" style={{ color }}>{label}</span>
             </div>
           ))}
-        </div>
+        </section>
 
-        {/* CTA */}
+        <section className="mt-4 rounded-xl border border-white/10 bg-black/25 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-violet-300/90">Quick Start</p>
+          <ol className="mt-2 space-y-1 text-[12px] text-gray-300">
+            <li>1. Open settings and complete your profile.</li>
+            <li>2. Focus any text field on a website.</li>
+            <li>3. Click the FillAI bolt to autofill instantly.</li>
+          </ol>
+        </section>
+
         <button
           onClick={onOptionsClick}
-          style={{ width: '100%', padding: '9px 0', borderRadius: 9, background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', border: 'none', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 0 18px rgba(124,58,237,0.35)', transition: 'opacity 0.15s, box-shadow 0.15s' }}
-          onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.boxShadow = '0 0 24px rgba(124,58,237,0.5)'; }}
-          onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.boxShadow = '0 0 18px rgba(124,58,237,0.35)'; }}
+          className="mt-4 w-full rounded-xl border border-violet-300/25 bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_0_20px_rgba(124,58,237,0.3)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-violet-400/50"
         >
-          Set Up Profile →
+          Set Up Profile
         </button>
-      </div>
+
+        <button
+          onClick={onOptionsClick}
+          className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-[12px] font-semibold text-gray-200 transition hover:bg-white/10"
+        >
+          Open Full Settings Page
+        </button>
+      </main>
     </div>
   );
 }
