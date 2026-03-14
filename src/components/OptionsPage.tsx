@@ -30,6 +30,7 @@ function Txt(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
 export function OptionsPage() {
   const { profile, setProfile } = useProfile();
   const [saved, setSaved]               = useState(false);
+  const [saveError, setSaveError]       = useState<string | null>(null);
   const [tab, setTab]                   = useState<Section>('basic');
   const [apiKey, setApiKey]             = useState('');
   const [showKey, setShowKey]           = useState(false);
@@ -48,10 +49,19 @@ export function OptionsPage() {
     setProfile(p => ({ ...p, [name]: value }));
   };
 
-  const onSave = () => {
-    if (isExt && apiKey.trim()) chrome.storage.local.set({ fillai_api_key: apiKey.trim() });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  const onSave = async () => {
+    try {
+      setSaveError(null);
+      if (isExt) {
+        await chrome.storage.local.set({ fillai_api_key: apiKey.trim() });
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to save settings.';
+      setSaveError(msg);
+      setSaved(false);
+    }
   };
 
   return (
@@ -101,6 +111,15 @@ export function OptionsPage() {
         {/* Panel */}
         <div className="rounded-2xl p-6 space-y-5"
           style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+
+          {saveError && (
+            <div
+              className="rounded-xl px-3 py-2 text-[12px]"
+              style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', color: '#fca5a5' }}
+            >
+              Could not save settings: {saveError}
+            </div>
+          )}
 
           {tab === 'basic' && <>
             <div className="grid grid-cols-1 gap-4">

@@ -21,8 +21,26 @@ chrome.runtime.onMessage.addListener(
 
 async function handleGenerate(msg: GenerateRequest): Promise<GenerateResponse> {
   try {
-    const r = await chrome.storage.local.get('fillai_api_key');
-    const apiKey = r.fillai_api_key as string | undefined;
+    const r = await chrome.storage.local.get([
+      'fillai_api_key',
+      // Backward compatibility for older builds / key names.
+      'gemini_api_key',
+      'api_key',
+      'apiKey',
+    ]);
+
+    const apiKey = [
+      r.fillai_api_key,
+      r.gemini_api_key,
+      r.api_key,
+      r.apiKey,
+    ].find((v): v is string => typeof v === 'string' && v.trim().length > 0);
+
+    // Migrate legacy keys so future lookups use one canonical storage key.
+    if (apiKey && r.fillai_api_key !== apiKey) {
+      await chrome.storage.local.set({ fillai_api_key: apiKey });
+    }
+
     if (!apiKey?.trim()) {
       return {
         success: false,

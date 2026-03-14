@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { GoogleGenAI } from '@google/genai';
 import { UserProfile } from '../types';
 
@@ -7,8 +8,9 @@ function getClient(explicitKey?: string): GoogleGenAI {
   // Extension mode: always use the explicitly provided key
   if (explicitKey) return new GoogleGenAI({ apiKey: explicitKey });
   // Dev mode: fall back to the .env variable
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error('GEMINI_API_KEY is not set. Add it to your .env file and restart the dev server.');
+
+  const key = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  if (!key) throw new Error('GEMINI_API_KEY/VITE_GEMINI_API_KEY is not set. Add VITE_GEMINI_API_KEY to your .env file and restart the dev server.');
   if (!_devAi) _devAi = new GoogleGenAI({ apiKey: key });
   return _devAi;
 }
@@ -77,7 +79,7 @@ Write the complete, final value for this field:`;
 
   try {
     const response = await getClient(options?.apiKey).models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
@@ -95,6 +97,10 @@ Write the complete, final value for this field:`;
     // Surface the real error message so we can diagnose it
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[FillAI LLM error]', msg, error);
+    const low = msg.toLowerCase();
+    if (low.includes('resource_exhausted') || low.includes('quota exceeded') || low.includes('code":429')) {
+      throw new Error('Gemini API quota is exceeded (or unavailable for this key/project). Check plan, billing, and rate limits in Google AI Studio, then retry.');
+    }
     throw new Error(msg || 'Failed to generate response.');
   }
 }
