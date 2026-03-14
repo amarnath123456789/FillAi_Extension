@@ -26,6 +26,46 @@ STRICT OUTPUT RULES — read carefully:
 5. User instruction: if a "User Instruction" section is present, treat it as the user's direct directive — honour the requested tone, style, length, or any specific rewording. The instruction takes priority over default style choices.
 6. Writing quality: aim for authentic, human-sounding prose — clear, confident, and specific. Avoid corporate buzzword overuse (e.g. "leverage synergies"), excessive self-praise, or generic filler.`;
 
+function extractModelText(response: unknown): string {
+  if (!response || typeof response !== 'object') return '';
+
+  const maybeText = (response as { text?: string }).text;
+  if (typeof maybeText === 'string' && maybeText.trim()) return maybeText.trim();
+
+  const candidates = (response as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  }).candidates;
+
+  if (!Array.isArray(candidates) || candidates.length === 0) return '';
+  const parts = candidates[0]?.content?.parts;
+  if (!Array.isArray(parts)) return '';
+
+  const joined = parts
+    .map((p) => (typeof p?.text === 'string' ? p.text : ''))
+    .join('')
+    .trim();
+
+  return joined;
+}
+
+function classifyLlmError(rawMessage: string): string {
+  const low = rawMessage.toLowerCase();
+
+  if (low.includes('resource_exhausted') || low.includes('quota exceeded') || low.includes('code":429') || low.includes('spending cap')) {
+    return 'Gemini API quota/spending cap has been reached for this project. Add billing or use a fresh API key/project, then retry.';
+  }
+
+  if (low.includes('permission denied') || low.includes('api key') || low.includes('unauthorized') || low.includes('forbidden')) {
+    return 'Gemini API key is invalid or does not have permission for this model. Check key validity and project access in AI Studio.';
+  }
+
+  if (low.includes('empty response')) {
+    return 'Gemini returned an empty response for this field. Try a shorter instruction or save more profile details.';
+  }
+
+  return rawMessage || 'Failed to generate response.';
+}
+
 export async function generateFieldResponse(
   profile: UserProfile,
   fieldContext: {
@@ -85,22 +125,18 @@ Write the complete, final value for this field:`;
         systemInstruction: SYSTEM_INSTRUCTION,
         temperature: 0.75,
         topP: 0.9,
+        maxOutputTokens: 220,
       }
     });
 
-    const text = response.text?.trim();
+    const text = extractModelText(response);
     if (!text) throw new Error('AI returned an empty response.');
 
     // Strip any residual markdown code fences the model might still emit
     return text.replace(/^```[^\n]*\n?/, '').replace(/\n?```$/, '').trim();
   } catch (error) {
-    // Surface the real error message so we can diagnose it
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[FillAI LLM error]', msg, error);
-    const low = msg.toLowerCase();
-    if (low.includes('resource_exhausted') || low.includes('quota exceeded') || low.includes('code":429')) {
-      throw new Error('Gemini API quota is exceeded (or unavailable for this key/project). Check plan, billing, and rate limits in Google AI Studio, then retry.');
-    }
-    throw new Error(msg || 'Failed to generate response.');
+    throw new Error(classifyLlmError(msg));
   }
 }

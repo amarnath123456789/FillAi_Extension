@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useProfile } from '../store';
-import { Save, CheckCircle2, User, Briefcase, Link2, Key, Eye, EyeOff, Zap } from 'lucide-react';
+import { Save, CheckCircle2, Eye, EyeOff, Zap } from 'lucide-react';
 
 type Section = 'basic' | 'professional' | 'links' | 'security';
 
@@ -13,18 +13,18 @@ const TABS: { id: Section; label: string }[] = [
 
 function Label({ text }: { text: string }) {
   return (
-    <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
+    <label className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.08em] text-gray-400">
       {text}
     </label>
   );
 }
 
 function Inp(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={`w-full px-3 py-2.5 rounded-lg text-[13px] text-white dark-input ${props.className ?? ''}`} />;
+  return <input {...props} className={`w-full rounded-xl px-3.5 py-3 text-[14px] text-white dark-input ${props.className ?? ''}`} />;
 }
 
 function Txt(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={`w-full px-3 py-2.5 rounded-lg text-[13px] text-white dark-input resize-y ${props.className ?? ''}`} />;
+  return <textarea {...props} className={`w-full rounded-xl px-3.5 py-3 text-[14px] text-white dark-input resize-y ${props.className ?? ''}`} />;
 }
 
 export function OptionsPage() {
@@ -74,17 +74,17 @@ export function OptionsPage() {
       <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6"
         style={{ background: 'rgba(10,8,28,0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
             style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', boxShadow: '0 0 16px rgba(124,58,237,0.5)' }}>
             <Zap size={15} className="text-white" fill="white" />
           </div>
           <div>
-            <h1 className="text-[15px] font-bold text-white tracking-tight leading-none">FillAI Settings</h1>
-            <p className="text-[11px] text-gray-500 mt-0.5">Profile stored locally · never uploaded</p>
+            <h1 className="text-[18px] font-bold leading-none tracking-tight text-white">FillAI Settings</h1>
+            <p className="mt-1 text-[12px] text-gray-400">Profile stored locally · never uploaded</p>
           </div>
         </div>
         <button onClick={onSave}
-          className="flex items-center gap-2 rounded-xl px-4 py-2 text-[13px] font-semibold transition-all duration-200"
+          className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-[14px] font-semibold transition-all duration-200"
           style={saved
             ? { background: 'linear-gradient(135deg,#059669,#10b981)', color: 'white', boxShadow: '0 0 16px rgba(16,185,129,0.4)' }
             : { background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: 'white', boxShadow: '0 0 16px rgba(124,58,237,0.35)' }
@@ -94,14 +94,14 @@ export function OptionsPage() {
       </div>
 
       {/* Content */}
-      <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-10 xl:px-14">
 
         {/* Tabs */}
-        <div className="mb-6 flex w-full gap-1 overflow-x-auto rounded-xl p-1 sm:mb-8"
+        <div className="mb-6 flex w-full gap-1 overflow-x-auto rounded-xl p-1.5 sm:mb-8"
           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`whitespace-nowrap rounded-lg px-3 py-2 text-[12px] font-semibold transition-all duration-150 sm:px-4 ${tab === t.id ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+              className={`whitespace-nowrap rounded-lg px-3.5 py-2.5 text-[13px] font-semibold transition-all duration-150 sm:px-4 ${tab === t.id ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
               style={tab === t.id ? { background: 'linear-gradient(135deg,rgba(99,102,241,0.3),rgba(124,58,237,0.2))', border: '1px solid rgba(139,92,246,0.4)', boxShadow: '0 0 10px rgba(124,58,237,0.2)' } : { border: '1px solid transparent' }}>
               {t.label}
             </button>
@@ -109,7 +109,7 @@ export function OptionsPage() {
         </div>
 
         {/* Panel */}
-        <div className="space-y-5 rounded-2xl p-4 sm:p-6"
+        <div className="space-y-6 rounded-2xl p-4 sm:p-6 lg:p-8"
           style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
 
           {saveError && (
@@ -125,7 +125,7 @@ export function OptionsPage() {
             <div className="grid grid-cols-1 gap-4">
               <div><Label text="Full Name" /><Inp name="fullName" value={profile.fullName} onChange={onChange} placeholder="John Doe" /></div>
             </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               <div><Label text="Email" /><Inp type="email" name="email" value={profile.email} onChange={onChange} placeholder="john@example.com" /></div>
               <div><Label text="Phone" /><Inp type="tel" name="phone" value={profile.phone} onChange={onChange} placeholder="+1 (555) 000-0000" /></div>
               <div><Label text="Date of Birth" /><Inp type="date" name="dob" value={profile.dob} onChange={onChange} className="text-gray-300" /></div>
@@ -134,7 +134,7 @@ export function OptionsPage() {
           </>}
 
           {tab === 'professional' && <>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               <div><Label text="Current Role" /><Inp name="currentRole" value={profile.currentRole} onChange={onChange} placeholder="Senior Frontend Engineer" /></div>
               <div><Label text="Years of Experience" /><Inp name="yearsOfExperience" value={profile.yearsOfExperience} onChange={onChange} placeholder="5 years" /></div>
               <div><Label text="Education" /><Inp name="education" value={profile.education} onChange={onChange} placeholder="B.S. Computer Science — MIT, 2019" /></div>
@@ -147,7 +147,7 @@ export function OptionsPage() {
 
           {tab === 'links' && <>
             <div><Label text="LinkedIn" /><Inp type="url" name="linkedin" value={profile.linkedin} onChange={onChange} placeholder="https://linkedin.com/in/johndoe" /></div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               <div><Label text="GitHub" /><Inp type="url" name="github" value={profile.github} onChange={onChange} placeholder="https://github.com/johndoe" /></div>
               <div><Label text="Portfolio / Website" /><Inp type="url" name="portfolio" value={profile.portfolio} onChange={onChange} placeholder="https://johndoe.com" /></div>
             </div>
@@ -182,7 +182,7 @@ export function OptionsPage() {
               <div className="p-4 rounded-xl text-[13px] text-gray-400 space-y-2"
                 style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
                 <p className="text-white font-semibold">Dev mode</p>
-                <p>API key loaded from <code className="text-violet-400">.env</code> as <code className="text-violet-400">GEMINI_API_KEY</code>.</p>
+                <p>API key loaded from <code className="text-violet-400">.env</code> as <code className="text-violet-400">VITE_GEMINI_API_KEY</code>.</p>
                 <p>In the built extension, users enter their key here and it is saved to <code className="text-violet-400">chrome.storage.local</code>.</p>
               </div>
             )}

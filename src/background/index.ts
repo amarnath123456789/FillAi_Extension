@@ -1,4 +1,5 @@
 import { generateFieldResponse } from '../services/llm';
+import { getHeuristicFill } from '../services/heuristics';
 import type { UserProfile } from '../types';
 
 interface GenerateRequest {
@@ -47,11 +48,25 @@ async function handleGenerate(msg: GenerateRequest): Promise<GenerateResponse> {
         error: 'No API key set. Open FillAI Options ⚙ and enter your Gemini API key.',
       };
     }
-    const text = await generateFieldResponse(msg.profile, msg.fieldContext, {
-      userInstruction: msg.userInstruction,
-      apiKey: apiKey.trim(),
-    });
-    return { success: true, text };
+    try {
+      const text = await generateFieldResponse(msg.profile, msg.fieldContext, {
+        userInstruction: msg.userInstruction,
+        apiKey: apiKey.trim(),
+      });
+      return { success: true, text };
+    } catch (llmErr) {
+      const fallback = getHeuristicFill(msg.profile, msg.fieldContext);
+      if (fallback?.trim()) {
+        console.warn('[FillAI] LLM failed, using heuristic fallback.', llmErr);
+        return { success: true, text: fallback };
+      }
+
+      const errMsg = llmErr instanceof Error ? llmErr.message : String(llmErr);
+      return {
+        success: false,
+        error: `AI generation failed and no profile fallback matched this field. ${errMsg}`,
+      };
+    }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : String(err) };
   }
