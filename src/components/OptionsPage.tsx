@@ -1,127 +1,174 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useProfile } from '../store';
-import { Save, CheckCircle2 } from 'lucide-react';
+import { Save, CheckCircle2, User, Briefcase, Link2, Key, Eye, EyeOff, Zap } from 'lucide-react';
+
+type Section = 'basic' | 'professional' | 'links' | 'security';
+
+const TABS: { id: Section; label: string }[] = [
+  { id: 'basic',        label: 'Basic Info'   },
+  { id: 'professional', label: 'Professional' },
+  { id: 'links',        label: 'Links'        },
+  { id: 'security',     label: 'Security'     },
+];
+
+function Label({ text }: { text: string }) {
+  return (
+    <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
+      {text}
+    </label>
+  );
+}
+
+function Inp(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return <input {...props} className={`w-full px-3 py-2.5 rounded-lg text-[13px] text-white dark-input ${props.className ?? ''}`} />;
+}
+
+function Txt(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea {...props} className={`w-full px-3 py-2.5 rounded-lg text-[13px] text-white dark-input resize-y ${props.className ?? ''}`} />;
+}
 
 export function OptionsPage() {
   const { profile, setProfile } = useProfile();
-  const [isSaved, setIsSaved] = useState(false);
+  const [saved, setSaved]               = useState(false);
+  const [tab, setTab]                   = useState<Section>('basic');
+  const [apiKey, setApiKey]             = useState('');
+  const [showKey, setShowKey]           = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const isExt = typeof chrome !== 'undefined' && !!chrome?.storage?.local;
+
+  useEffect(() => {
+    if (!isExt) return;
+    chrome.storage.local.get('fillai_api_key')
+      .then((r: Record<string, string>) => setApiKey(r.fillai_api_key ?? ''))
+      .catch(() => {});
+  }, [isExt]);
+
+  const onChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setProfile((prev) => ({ ...prev, [name]: value }));
+    setProfile(p => ({ ...p, [name]: value }));
   };
 
-  const handleSave = () => {
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2000);
+  const onSave = () => {
+    if (isExt && apiKey.trim()) chrome.storage.local.set({ fillai_api_key: apiKey.trim() });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
   };
 
   return (
-    <div className="h-full flex flex-col glass-card">
-      <div className="p-6 border-b border-white/10 shrink-0 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-white">Profile Settings</h1>
-          <p className="text-sm text-gray-400 mt-1">Your data is stored locally.</p>
+    <div className="min-h-screen w-full" style={{ background: 'linear-gradient(160deg, #0e0c26 0%, #080618 100%)' }}>
+
+      {/* Top accent line */}
+      <div className="h-0.5 w-full" style={{ background: 'linear-gradient(90deg, transparent, rgba(139,92,246,0.8) 30%, rgba(99,102,241,0.8) 70%, transparent)' }} />
+
+      {/* Sticky header */}
+      <div className="sticky top-0 z-20 px-6 py-4 flex items-center justify-between"
+        style={{ background: 'rgba(10,8,28,0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', boxShadow: '0 0 16px rgba(124,58,237,0.5)' }}>
+            <Zap size={15} className="text-white" fill="white" />
+          </div>
+          <div>
+            <h1 className="text-[15px] font-bold text-white tracking-tight leading-none">FillAI Settings</h1>
+            <p className="text-[11px] text-gray-500 mt-0.5">Profile stored locally · never uploaded</p>
+          </div>
         </div>
-        <button
-          onClick={handleSave}
-          className="purple-btn px-4 py-2 flex items-center gap-2 font-medium text-sm"
-        >
-          {isSaved ? <CheckCircle2 size={16} /> : <Save size={16} />}
-          {isSaved ? 'Saved!' : 'Save'}
+        <button onClick={onSave}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold transition-all duration-200"
+          style={saved
+            ? { background: 'linear-gradient(135deg,#059669,#10b981)', color: 'white', boxShadow: '0 0 16px rgba(16,185,129,0.4)' }
+            : { background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: 'white', boxShadow: '0 0 16px rgba(124,58,237,0.35)' }
+          }>
+          {saved ? <><CheckCircle2 size={14} /> Saved</> : <><Save size={14} /> Save Profile</>}
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-        <div className="space-y-8">
-          {/* Basic Info */}
-          <section>
-            <h2 className="text-sm font-semibold text-purple-400 uppercase tracking-wider mb-4">Basic Info</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Full Name</label>
-                <input type="text" name="fullName" value={profile.fullName} onChange={handleChange} className="w-full p-2.5 rounded-lg dark-input text-sm" placeholder="John Doe" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
-                  <input type="email" name="email" value={profile.email} onChange={handleChange} className="w-full p-2.5 rounded-lg dark-input text-sm" placeholder="john@example.com" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Phone</label>
-                  <input type="tel" name="phone" value={profile.phone} onChange={handleChange} className="w-full p-2.5 rounded-lg dark-input text-sm" placeholder="+1 (555) 000-0000" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Date of Birth</label>
-                  <input type="date" name="dob" value={profile.dob} onChange={handleChange} className="w-full p-2.5 rounded-lg dark-input text-sm text-gray-300" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Location / Address</label>
-                  <input type="text" name="address" value={profile.address} onChange={handleChange} className="w-full p-2.5 rounded-lg dark-input text-sm" placeholder="San Francisco, CA" />
-                </div>
-              </div>
-            </div>
-          </section>
+      {/* Content */}
+      <div className="max-w-2xl mx-auto px-6 py-8">
 
-          {/* Professional Details */}
-          <section>
-            <h2 className="text-sm font-semibold text-purple-400 uppercase tracking-wider mb-4">Professional Details</h2>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Current Role</label>
-                  <input type="text" name="currentRole" value={profile.currentRole} onChange={handleChange} className="w-full p-2.5 rounded-lg dark-input text-sm" placeholder="Senior Frontend Engineer" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Years of Experience</label>
-                  <input type="text" name="yearsOfExperience" value={profile.yearsOfExperience} onChange={handleChange} className="w-full p-2.5 rounded-lg dark-input text-sm" placeholder="5 years" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Highest Education</label>
-                <input type="text" name="education" value={profile.education} onChange={handleChange} className="w-full p-2.5 rounded-lg dark-input text-sm" placeholder="B.S. Computer Science, University of Tech (2018)" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Certifications</label>
-                <input type="text" name="certifications" value={profile.certifications} onChange={handleChange} className="w-full p-2.5 rounded-lg dark-input text-sm" placeholder="AWS Certified Solutions Architect, Certified Scrum Master" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Skills (comma separated)</label>
-                <input type="text" name="skills" value={profile.skills} onChange={handleChange} className="w-full p-2.5 rounded-lg dark-input text-sm" placeholder="React, TypeScript, Node.js, Tailwind CSS" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Bio / Summary</label>
-                <textarea name="bio" value={profile.bio} onChange={handleChange} rows={3} className="w-full p-2.5 rounded-lg dark-input text-sm resize-none" placeholder="Passionate frontend developer with a focus on building accessible and performant web applications..." />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Key Achievements</label>
-                <textarea name="achievements" value={profile.achievements} onChange={handleChange} rows={3} className="w-full p-2.5 rounded-lg dark-input text-sm resize-none" placeholder="- Led the migration of a legacy monolithic app to micro-frontends...&#10;- Improved core web vitals by 40%..." />
-              </div>
-            </div>
-          </section>
+        {/* Tabs */}
+        <div className="flex gap-1 mb-8 p-1 rounded-xl w-fit"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          {TABS.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`px-4 py-2 rounded-lg text-[12px] font-semibold transition-all duration-150 ${tab === t.id ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+              style={tab === t.id ? { background: 'linear-gradient(135deg,rgba(99,102,241,0.3),rgba(124,58,237,0.2))', border: '1px solid rgba(139,92,246,0.4)', boxShadow: '0 0 10px rgba(124,58,237,0.2)' } : { border: '1px solid transparent' }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
 
-          {/* Links */}
-          <section>
-            <h2 className="text-sm font-semibold text-purple-400 uppercase tracking-wider mb-4">Links & Profiles</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">LinkedIn URL</label>
-                <input type="url" name="linkedin" value={profile.linkedin} onChange={handleChange} className="w-full p-2.5 rounded-lg dark-input text-sm" placeholder="https://linkedin.com/in/johndoe" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">GitHub URL</label>
-                <input type="url" name="github" value={profile.github} onChange={handleChange} className="w-full p-2.5 rounded-lg dark-input text-sm" placeholder="https://github.com/johndoe" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Portfolio / Website</label>
-                <input type="url" name="portfolio" value={profile.portfolio} onChange={handleChange} className="w-full p-2.5 rounded-lg dark-input text-sm" placeholder="https://johndoe.com" />
-              </div>
+        {/* Panel */}
+        <div className="rounded-2xl p-6 space-y-5"
+          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+
+          {tab === 'basic' && <>
+            <div className="grid grid-cols-1 gap-4">
+              <div><Label text="Full Name" /><Inp name="fullName" value={profile.fullName} onChange={onChange} placeholder="John Doe" /></div>
             </div>
-          </section>
-          
-          <div className="pb-8"></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label text="Email" /><Inp type="email" name="email" value={profile.email} onChange={onChange} placeholder="john@example.com" /></div>
+              <div><Label text="Phone" /><Inp type="tel" name="phone" value={profile.phone} onChange={onChange} placeholder="+1 (555) 000-0000" /></div>
+              <div><Label text="Date of Birth" /><Inp type="date" name="dob" value={profile.dob} onChange={onChange} className="text-gray-300" /></div>
+              <div><Label text="Location" /><Inp name="address" value={profile.address} onChange={onChange} placeholder="San Francisco, CA" /></div>
+            </div>
+          </>}
+
+          {tab === 'professional' && <>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label text="Current Role" /><Inp name="currentRole" value={profile.currentRole} onChange={onChange} placeholder="Senior Frontend Engineer" /></div>
+              <div><Label text="Years of Experience" /><Inp name="yearsOfExperience" value={profile.yearsOfExperience} onChange={onChange} placeholder="5 years" /></div>
+              <div><Label text="Education" /><Inp name="education" value={profile.education} onChange={onChange} placeholder="B.S. Computer Science — MIT, 2019" /></div>
+              <div><Label text="Certifications" /><Inp name="certifications" value={profile.certifications} onChange={onChange} placeholder="AWS Certified, Scrum Master" /></div>
+            </div>
+            <div><Label text="Skills" /><Inp name="skills" value={profile.skills} onChange={onChange} placeholder="React, TypeScript, Node.js, Tailwind CSS" /></div>
+            <div><Label text="Bio / Professional Summary" /><Txt name="bio" value={profile.bio} onChange={onChange} rows={4} placeholder="Passionate frontend developer with a focus on performance and UX…" /></div>
+            <div><Label text="Key Achievements" /><Txt name="achievements" value={profile.achievements} onChange={onChange} rows={4} placeholder={"- Led migration to micro-frontends\n- Improved Core Web Vitals by 40%"} /></div>
+          </>}
+
+          {tab === 'links' && <>
+            <div><Label text="LinkedIn" /><Inp type="url" name="linkedin" value={profile.linkedin} onChange={onChange} placeholder="https://linkedin.com/in/johndoe" /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label text="GitHub" /><Inp type="url" name="github" value={profile.github} onChange={onChange} placeholder="https://github.com/johndoe" /></div>
+              <div><Label text="Portfolio / Website" /><Inp type="url" name="portfolio" value={profile.portfolio} onChange={onChange} placeholder="https://johndoe.com" /></div>
+            </div>
+          </>}
+
+          {tab === 'security' && <>
+            {isExt ? <>
+              <div>
+                <Label text="Gemini API Key" />
+                <div className="relative">
+                  <Inp type={showKey ? 'text' : 'password'} value={apiKey} onChange={e => setApiKey(e.target.value)}
+                    className="pr-10 font-mono" placeholder="AIzaSy…" autoComplete="off" spellCheck={false} />
+                  <button type="button" onClick={() => setShowKey(s => !s)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors">
+                    {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+                <p className="text-[12px] text-gray-500 mt-2">
+                  Stored only on this device.{' '}
+                  <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer"
+                    className="text-violet-400 hover:text-violet-300 underline underline-offset-2">
+                    Get a free key →
+                  </a>
+                </p>
+              </div>
+              <div className="p-4 rounded-xl text-[12px] text-gray-400 leading-relaxed"
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                Your key is saved to <code className="text-violet-400">chrome.storage.local</code> and used by the
+                background service worker to call Gemini for fields that aren't in your profile.
+              </div>
+            </> : (
+              <div className="p-4 rounded-xl text-[13px] text-gray-400 space-y-2"
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <p className="text-white font-semibold">Dev mode</p>
+                <p>API key loaded from <code className="text-violet-400">.env</code> as <code className="text-violet-400">GEMINI_API_KEY</code>.</p>
+                <p>In the built extension, users enter their key here and it is saved to <code className="text-violet-400">chrome.storage.local</code>.</p>
+              </div>
+            )}
+          </>}
+
         </div>
       </div>
     </div>

@@ -2,7 +2,22 @@ import React, { useState, useRef, useEffect } from 'react';
 import { generateFieldResponse } from '../services/llm';
 import { getHeuristicFill } from '../services/heuristics';
 import { useProfile } from '../store';
-import { Sparkles, Loader2, Check, AlertCircle } from 'lucide-react';
+import { Loader2, Check, AlertCircle } from 'lucide-react';
+
+function BoltIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <defs>
+        <linearGradient id="bolt-lg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#a78bfa" />
+          <stop offset="100%" stopColor="#6366f1" />
+        </linearGradient>
+      </defs>
+      <path d="M13 2L4.5 13.5H11L10 22L20 10H13.5L13 2Z"
+        fill="url(#bolt-lg)" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 type FillStatus = 'idle' | 'generating' | 'success' | 'error';
 
@@ -12,13 +27,28 @@ export function TestPage() {
   const [buttonPos, setButtonPos] = useState({ top: 0, left: 0 });
   const [fillStatus, setFillStatus] = useState<FillStatus>('idle');
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  
+  const [hasInstruction, setHasInstruction] = useState(false);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const isGeneratingRef = useRef(fillStatus === 'generating');
 
   useEffect(() => {
     isGeneratingRef.current = fillStatus === 'generating';
   }, [fillStatus]);
+
+  // Track whether the active field already has text (instruction mode)
+  useEffect(() => {
+    if (!activeField) { setHasInstruction(false); return; }
+    const checkValue = () => {
+      const val = (activeField instanceof HTMLInputElement || activeField instanceof HTMLTextAreaElement)
+        ? activeField.value.trim()
+        : '';
+      setHasInstruction(val.length > 0);
+    };
+    checkValue();
+    activeField.addEventListener('input', checkValue);
+    return () => activeField.removeEventListener('input', checkValue);
+  }, [activeField]);
 
   const showToast = (text: string, type: 'success' | 'error') => {
     setToastMessage({ text, type });
@@ -29,7 +59,7 @@ export function TestPage() {
   useEffect(() => {
     const handleFocusIn = (e: FocusEvent) => {
       const target = e.target as HTMLElement;
-      if (target.tagName === 'TEXTAREA' || (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'text' || (target as HTMLInputElement).type === 'date')) {
+      if (target.tagName === 'TEXTAREA' || (target.tagName === 'INPUT' && ((target as HTMLInputElement).type === 'text' || (target as HTMLInputElement).type === 'date'))) {
         setActiveField(target);
         updateButtonPosition(target);
         setFillStatus('idle'); // Reset status when focusing a new field
@@ -97,11 +127,11 @@ export function TestPage() {
     e.preventDefault();
     e.stopPropagation();
     if (!activeField) return;
-    
+
     setFillStatus('generating');
-    
+
     try {
-      // Extract context
+      // Extract label
       let label = '';
       const id = activeField.id;
       if (id) {
@@ -109,93 +139,131 @@ export function TestPage() {
         if (labelEl) label = labelEl.textContent || '';
       }
       if (!label) {
-        // Try to find closest preceding text or wrapper label
         const wrapperLabel = activeField.closest('label');
         if (wrapperLabel) label = wrapperLabel.textContent?.replace(activeField.textContent || '', '') || '';
       }
+
+      // Capture whatever the user has already typed — this becomes their instruction
+      const userInstruction = (activeField instanceof HTMLInputElement || activeField instanceof HTMLTextAreaElement)
+        ? activeField.value.trim()
+        : '';
+
+      const tagName = activeField.tagName.toLowerCase();
+      const fieldType = tagName === 'textarea'
+        ? 'textarea'
+        : (activeField as HTMLInputElement).type || 'text';
 
       const context = {
         label: label.trim(),
         placeholder: activeField.getAttribute('placeholder') || '',
         name: activeField.getAttribute('name') || '',
         id: activeField.id || '',
+        type: fieldType,
       };
 
-      // 1. Try heuristics first for straightforward fields
-      let response = getHeuristicFill(profile, context);
-      const usedHeuristics = !!response;
+      let response: string | null = null;
+      let fillMode: 'profile' | 'instruction' | 'ai' = 'ai';
 
-      // 2. If no heuristic match, use LLM
-      if (!response) {
-        response = await generateFieldResponse(profile, context);
+      if (userInstruction) {
+        // User typed something — treat it as a style/content instruction, go straight to LLM
+        fillMode = 'instruction';
+        response = await generateFieldResponse(profile, context, { userInstruction });
+      } else {
+        // No existing text: try fast heuristic match first
+        response = getHeuristicFill(profile, context);
+        if (response) {
+          fillMode = 'profile';
+        } else {
+          fillMode = 'ai';
+          response = await generateFieldResponse(profile, context);
+        }
       }
-      
-      if (!response) {
-        throw new Error("Could not generate a response for this field.");
-      }
-      
-      // Fill the field
+
+      if (!response) throw new Error('Could not generate a response for this field.');
+
+      // Write the value back into the DOM field
       if (activeField instanceof HTMLInputElement || activeField instanceof HTMLTextAreaElement) {
-        // Use native setter to ensure React registers the change if it were a real React form
-        const prototype = activeField instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
-        
-        if (nativeInputValueSetter) {
-          nativeInputValueSetter.call(activeField, response);
+        const proto = activeField instanceof HTMLTextAreaElement
+          ? HTMLTextAreaElement.prototype
+          : HTMLInputElement.prototype;
+        const nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+        if (nativeSetter) {
+          nativeSetter.call(activeField, response);
         } else {
           activeField.value = response;
         }
-        
-        // Trigger change event for React/frameworks
         activeField.dispatchEvent(new Event('input', { bubbles: true }));
         activeField.dispatchEvent(new Event('change', { bubbles: true }));
       }
-      
+
       setFillStatus('success');
-      showToast(usedHeuristics ? 'Filled using profile data' : 'Filled using AI', 'success');
-      
-      setTimeout(() => {
-        if (isGeneratingRef.current === false) {
-          setFillStatus('idle');
-        }
-      }, 2000);
-      
+      const toastText =
+        fillMode === 'profile'     ? 'Filled from profile' :
+        fillMode === 'instruction' ? 'Filled with your instruction' :
+                                     'Filled using AI';
+      showToast(toastText, 'success');
+
+      setTimeout(() => { if (!isGeneratingRef.current) setFillStatus('idle'); }, 2000);
+
     } catch (error) {
       console.error(error);
       setFillStatus('error');
       showToast(error instanceof Error ? error.message : 'An error occurred', 'error');
-      
-      setTimeout(() => {
-        if (isGeneratingRef.current === false) {
-          setFillStatus('idle');
-        }
-      }, 3000);
+      setTimeout(() => { if (!isGeneratingRef.current) setFillStatus('idle'); }, 3000);
     } finally {
-      activeField.focus(); // Ensure focus remains
+      activeField.focus();
     }
   };
 
   const getButtonContent = () => {
     switch (fillStatus) {
       case 'generating':
-        return <Loader2 size={16} className="animate-spin" />;
+        return <Loader2 size={13} className="animate-spin text-violet-400" />;
       case 'success':
-        return <Check size={16} className="text-white" />;
+        return <Check size={13} className="text-emerald-400" />;
       case 'error':
-        return <AlertCircle size={16} className="text-white" />;
+        return <AlertCircle size={13} className="text-red-400" />;
       default:
-        return <Sparkles size={16} className="group-hover:scale-110 transition-transform" />;
+        return <BoltIcon size={14} />;
     }
   };
 
-  const getButtonColor = () => {
+  const getButtonStyle = (): React.CSSProperties => {
     switch (fillStatus) {
       case 'success':
-        return 'bg-green-500 hover:bg-green-600';
+        return {
+          background: 'rgba(16,185,129,0.12)',
+          border: '1px solid rgba(16,185,129,0.4)',
+          boxShadow: '0 0 10px rgba(16,185,129,0.25)',
+        };
       case 'error':
-        return 'bg-red-500 hover:bg-red-600';
+        return {
+          background: 'rgba(239,68,68,0.12)',
+          border: '1px solid rgba(239,68,68,0.4)',
+          boxShadow: '0 0 10px rgba(239,68,68,0.25)',
+        };
+      case 'generating':
+        return {
+          background: 'rgba(139,92,246,0.1)',
+          border: '1px solid rgba(139,92,246,0.35)',
+          boxShadow: '0 0 8px rgba(124,58,237,0.2)',
+        };
       default:
-        return 'bg-purple-600 hover:bg-purple-700';
+        // Instruction mode: user has text in the field — show amber/warm glow to indicate it
+        if (hasInstruction) {
+          return {
+            background: 'rgba(251,146,60,0.1)',
+            border: '1px solid rgba(251,146,60,0.5)',
+            boxShadow: '0 0 12px rgba(251,146,60,0.25), inset 0 1px 0 rgba(255,255,255,0.06)',
+            backdropFilter: 'blur(8px)',
+          };
+        }
+        return {
+          background: 'rgba(10,8,24,0.7)',
+          border: '1px solid rgba(139,92,246,0.45)',
+          boxShadow: '0 0 10px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.06)',
+          backdropFilter: 'blur(8px)',
+        };
     }
   };
 
@@ -296,9 +364,9 @@ export function TestPage() {
           }}
           onClick={handleFillClick}
           disabled={fillStatus === 'generating'}
-          style={{ top: buttonPos.top, left: buttonPos.left }}
-          className={`absolute z-50 text-white p-1.5 rounded-md shadow-md transition-all flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed group ${getButtonColor()}`}
-          title="QuickFill with AI"
+          style={{ top: buttonPos.top, left: buttonPos.left, ...getButtonStyle() }}
+          className="absolute z-50 p-1.5 rounded-lg transition-all duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:scale-110 active:scale-95"
+          title={hasInstruction ? 'FillAI — using your text as instruction' : 'FillAI — auto-fill this field'}
         >
           {getButtonContent()}
         </button>

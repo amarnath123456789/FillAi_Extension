@@ -1,72 +1,70 @@
-import React from 'react';
-import { useProfile } from '../store';
-import { Settings, Sparkles, User } from 'lucide-react';
-
-export function PopupPage({ onOptionsClick }: { onOptionsClick: () => void }) {
-  const { profile } = useProfile();
-
-  const isProfileEmpty = !profile.fullName && !profile.bio && !profile.skills;
-
+export function PopupPage({ onOptionsClick }: { onOptionsClick?: () => void }) {
   return (
-    <div className="w-[360px] glass-card p-6 flex flex-col items-center">
-      <div className="w-full flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-purple-500/10 rounded-lg flex items-center justify-center border border-purple-500/20">
-            <Sparkles size={16} className="text-purple-400" />
+    <div
+      className="flex flex-col bg-[#080918] text-white"
+      style={{ width: 380, height: 520, display: 'flex', flexDirection: 'column', backgroundColor: '#080918', color: '#fff', fontFamily: 'Inter, system-ui, sans-serif' }}
+    >
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 26, height: 26, background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>
+            ⚡
           </div>
-          <h1 className="font-semibold text-lg text-white">QuickFill</h1>
+          <span style={{ fontWeight: 700, fontSize: 13, color: '#fff' }}>FillAI</span>
+          <span style={{ color: '#4ade80', fontSize: 11 }}>● Active</span>
         </div>
-        <button onClick={onOptionsClick} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white" title="Options">
-          <Settings size={18} />
+        <button
+          onClick={onOptionsClick}
+          title="Open Settings"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', fontSize: 15, padding: '3px 5px', borderRadius: 6, lineHeight: 1, transition: 'color 0.15s' }}
+          onMouseEnter={e => (e.currentTarget.style.color = '#d1d5db')}
+          onMouseLeave={e => (e.currentTarget.style.color = '#6b7280')}
+        >
+          ⚙
         </button>
       </div>
-      
-      <div className="w-full flex-1">
-        {isProfileEmpty ? (
-          <div className="text-center py-8">
-            <div className="bg-white/5 border border-white/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
-              <User size={28} />
+
+      {/* Hero */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 20px', textAlign: 'center', gap: 0 }}>
+        {/* Avatar */}
+        <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, marginBottom: 12 }}>
+          👤
+        </div>
+
+        <h2 style={{ fontSize: 14, fontWeight: 700, color: '#fff', margin: '0 0 5px' }}>
+          No profile set up yet
+        </h2>
+        <p style={{ fontSize: 12, color: '#9ca3af', margin: '0 0 20px' }}>
+          Set up once, fill any form instantly
+        </p>
+
+        {/* Feature badges grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7, width: '100%', marginBottom: 18 }}>
+          {[
+            { icon: '⚡', label: 'Auto-fill forms',  color: '#a78bfa' },
+            { icon: '✨', label: 'AI-powered',        color: '#818cf8' },
+            { icon: '🔒', label: 'Stored locally',   color: '#4ade80' },
+            { icon: '🌐', label: 'Any website',       color: '#38bdf8' },
+          ].map(({ icon, label, color }) => (
+            <div
+              key={label}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', borderRadius: 9, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+            >
+              <span style={{ fontSize: 13 }}>{icon}</span>
+              <span style={{ fontSize: 11, color, fontWeight: 500 }}>{label}</span>
             </div>
-            <h3 className="font-medium text-white mb-2 text-lg">Profile Empty</h3>
-            <p className="text-sm text-gray-400 mb-6">Set up your profile to start auto-filling forms.</p>
-            <button onClick={onOptionsClick} className="w-full purple-btn py-3 font-medium flex items-center justify-center gap-2">
-              Setup Profile
-            </button>
-          </div>
-        ) : (
-          <div className="w-full">
-            <div className="bg-[#141414] border border-white/5 rounded-xl p-4 mb-6">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Current Profile</h3>
-              <div className="space-y-4">
-                {profile.fullName && (
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-500">Name</span>
-                    <span className="text-gray-200 font-medium truncate max-w-[180px]">{profile.fullName}</span>
-                  </div>
-                )}
-                {profile.currentRole && (
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-500">Role</span>
-                    <span className="text-gray-200 font-medium truncate max-w-[180px]">{profile.currentRole}</span>
-                  </div>
-                )}
-                {profile.email && (
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-500">Email</span>
-                    <span className="text-gray-200 font-medium truncate max-w-[180px]">{profile.email}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <div className="p-4 bg-purple-500/10 rounded-xl border border-purple-500/20 flex items-start gap-3">
-              <Sparkles size={18} className="text-purple-400 mt-0.5 shrink-0" />
-              <p className="text-sm text-purple-200/80 leading-relaxed">
-                QuickFill is active. Click the ✨ icon next to form fields on any webpage to auto-fill them.
-              </p>
-            </div>
-          </div>
-        )}
+          ))}
+        </div>
+
+        {/* CTA */}
+        <button
+          onClick={onOptionsClick}
+          style={{ width: '100%', padding: '9px 0', borderRadius: 9, background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', border: 'none', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 0 18px rgba(124,58,237,0.35)', transition: 'opacity 0.15s, box-shadow 0.15s' }}
+          onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.boxShadow = '0 0 24px rgba(124,58,237,0.5)'; }}
+          onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.boxShadow = '0 0 18px rgba(124,58,237,0.35)'; }}
+        >
+          Set Up Profile →
+        </button>
       </div>
     </div>
   );

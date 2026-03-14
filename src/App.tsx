@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { OptionsPage } from './components/OptionsPage';
 import { PopupPage } from './components/PopupPage';
 import { TestPage } from './components/TestPage';
-import { LayoutTemplate, Info, Sparkles } from 'lucide-react';
+import { ProfileProvider } from './store';
+import { LayoutTemplate } from 'lucide-react';
 
 type ViewMode = 'popup' | 'options';
 
@@ -10,6 +11,7 @@ export default function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('popup');
 
   return (
+    <ProfileProvider>
     <div className="flex h-screen w-full bg-black overflow-hidden font-sans text-white">
       {/* Left Pane: The "Web Page" */}
       <div className="flex-1 relative border-r border-white/10 shadow-2xl z-10 flex flex-col bg-[#050505]">
@@ -28,56 +30,60 @@ export default function App() {
         </div>
       </div>
 
-      {/* Right Pane: Extension Simulator UI */}
-      <div className="w-[450px] bg-[#050505] flex flex-col shrink-0">
-        <div className="p-4 border-b border-white/10 bg-[#0a0a0a] flex items-center justify-between shrink-0">
-          <h2 className="font-semibold text-white flex items-center gap-2">
-            <LayoutTemplate size={18} className="text-purple-500" />
-            Extension Simulator
-          </h2>
-          <div className="flex bg-[#141414] p-1 rounded-lg border border-white/5">
-            <button 
-              onClick={() => setViewMode('popup')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'popup' ? 'bg-[#222] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-            >
-              Popup
-            </button>
-            <button 
-              onClick={() => setViewMode('options')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'options' ? 'bg-[#222] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-            >
-              Options
-            </button>
+      {/* Right Pane: Extension Simulator */}
+      <div
+        className="w-[460px] flex flex-col shrink-0 relative"
+        style={{ background: 'linear-gradient(180deg, #07061a 0%, #050412 100%)' }}
+      >
+        {/* Deep ambient glows */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-violet-900/20 blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-0 right-0 w-60 h-60 rounded-full bg-indigo-900/15 blur-[80px] pointer-events-none" />
+        {/* Side border shine */}
+        <div className="absolute top-0 left-0 bottom-0 w-px bg-gradient-to-b from-transparent via-violet-600/20 to-transparent pointer-events-none" />
+
+        {/* Top bar */}
+        <div
+          className="px-5 py-3 shrink-0 flex items-center justify-between relative z-10"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.015)' }}
+        >
+          <div className="flex items-center gap-2">
+            <LayoutTemplate size={13} className="text-violet-500" />
+            <span className="text-[12px] font-semibold text-gray-400 tracking-wide">Extension Preview</span>
+          </div>
+          <div
+            className="flex p-0.5 rounded-lg gap-0.5"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+          >
+            {(['popup', 'options'] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className={`px-3 py-1.5 text-[11px] font-semibold rounded-md capitalize transition-all duration-200 ${
+                  viewMode === mode
+                    ? 'text-white'
+                    : 'text-gray-600 hover:text-gray-400'
+                }`}
+                style={viewMode === mode ? {
+                  background: 'linear-gradient(135deg, rgba(99,102,241,0.25), rgba(124,58,237,0.2))',
+                  boxShadow: '0 0 10px rgba(124,58,237,0.2)',
+                } : {}}
+              >
+                {mode}
+              </button>
+            ))}
           </div>
         </div>
-        
-        <div className="flex-1 p-6 overflow-hidden flex flex-col items-center justify-start relative">
-          {/* Subtle background glow for the right pane */}
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-64 h-64 bg-purple-600/10 rounded-full blur-[100px] pointer-events-none"></div>
 
-          <div className="mb-6 w-full bg-purple-500/10 border border-purple-500/20 rounded-xl p-4 flex gap-3 shrink-0 relative z-10">
-            <Info className="text-purple-400 shrink-0 mt-0.5" size={20} />
-            <div className="text-sm text-purple-200">
-              <p className="font-medium mb-1 text-purple-100">How to test this MVP:</p>
-              <ol className="list-decimal pl-4 space-y-1 opacity-90">
-                <li>Go to <strong>Options</strong> and fill out your profile.</li>
-                <li>Click on any text field in the dummy webpage on the left.</li>
-                <li>Click the <Sparkles size={12} className="inline text-purple-400" /> icon that appears inside the field.</li>
-              </ol>
-            </div>
-          </div>
-
+        {/* Content */}
+        <div className={`flex-1 relative z-10 ${viewMode === 'options' ? 'overflow-y-auto' : 'overflow-hidden flex items-center justify-center px-6 py-8'}`}>
           {viewMode === 'popup' ? (
-            <div className="w-full flex justify-center mt-4 relative z-10">
-              <PopupPage onOptionsClick={() => setViewMode('options')} />
-            </div>
+            <PopupPage onOptionsClick={() => setViewMode('options')} />
           ) : (
-            <div className="w-full h-full overflow-hidden relative z-10">
-              <OptionsPage />
-            </div>
+            <OptionsPage />
           )}
         </div>
       </div>
     </div>
+  </ProfileProvider>
   );
 }
