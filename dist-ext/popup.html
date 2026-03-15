@@ -4,43 +4,217 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FillAI</title>
-
   <style>
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      color-scheme: dark;
+      --bg: #05040f;
+      --border: rgba(255,255,255,0.07);
+      --violet: #7c3aed;
+      --violet-light: #a78bfa;
+      --indigo: #4f46e5;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --text: #f1f0ff;
+      --text-muted: #6b6a8a;
+      --text-dim: #9998b8;
+      --font: 'DM Sans', system-ui, sans-serif;
+      --mono: 'DM Mono', monospace;
     }
 
-    html, body {
-      width: 400px;
-      height: 620px;
-      min-width: 400px;
-      min-height: 620px;
-      max-width: 400px;
-      max-height: 620px;
-      background: #070516;
-      overflow: hidden;
-      font-family: Inter, system-ui, sans-serif;
+    html, body { width: 380px; height: 580px; overflow: hidden; background: var(--bg); font-family: var(--font); color: var(--text); }
+
+    .shell { width: 100%; height: 100%; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+
+    .orb { position: absolute; border-radius: 50%; pointer-events: none; filter: blur(70px); }
+    .orb-1 { width: 300px; height: 300px; background: #4f46e5; top: -100px; left: -80px; opacity: 0.15; }
+    .orb-2 { width: 220px; height: 220px; background: var(--violet); bottom: -80px; right: -60px; opacity: 0.1; }
+
+    header {
+      position: relative; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 13px 18px 12px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(5,4,15,0.8); backdrop-filter: blur(20px);
     }
 
-    #root {
-      width: 100%;
-      height: 100%;
-      display: flex;
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-icon {
+      width: 34px; height: 34px; border-radius: 10px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 18px rgba(124,58,237,0.45), inset 0 1px 0 rgba(255,255,255,0.15);
+    }
+    .logo-name { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+    .logo-status { font-size: 11px; font-weight: 500; margin-top: 2px; }
+    .logo-status.ready { color: var(--emerald); }
+    .logo-status.setup { color: var(--amber); }
+
+    .settings-btn {
+      padding: 6px 13px; border-radius: 8px; border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04); color: var(--text-dim);
+      font-size: 12px; font-weight: 600; font-family: var(--font); cursor: pointer; transition: all 0.15s;
+    }
+    .settings-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+
+    .body {
+      flex: 1; overflow-y: auto; padding: 16px 18px 18px;
+      position: relative; z-index: 5;
+      scrollbar-width: thin; scrollbar-color: rgba(124,58,237,0.3) transparent;
+    }
+    .body::-webkit-scrollbar { width: 3px; }
+    .body::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.3); border-radius: 10px; }
+
+    .hero {
+      border-radius: 16px; padding: 20px; text-align: center;
+      position: relative; overflow: hidden; margin-bottom: 12px;
+      background: linear-gradient(160deg, rgba(79,70,229,0.1), rgba(124,58,237,0.06));
+      border: 1px solid rgba(139,92,246,0.18);
+      animation: fadeUp 0.28s ease both;
+    }
+    .hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 50% -10%, rgba(124,58,237,0.12) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    .hero-icon {
+      width: 54px; height: 54px; border-radius: 15px;
+      margin: 0 auto 14px; display: flex; align-items: center; justify-content: center;
+    }
+    .hero-icon.ready { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25); box-shadow: 0 0 20px rgba(16,185,129,0.12); }
+    .hero-icon.setup { background: rgba(124,58,237,0.1); border: 1px solid rgba(124,58,237,0.25); box-shadow: 0 0 20px rgba(124,58,237,0.15); }
+
+    .hero h2 { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 6px; }
+    .hero p  { font-size: 12.5px; color: var(--text-dim); line-height: 1.55; max-width: 230px; margin: 0 auto; }
+
+    .progress-wrap { margin-top: 15px; background: rgba(0,0,0,0.3); border-radius: 10px; padding: 11px 13px; border: 1px solid var(--border); text-align: left; }
+    .progress-row  { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+    .progress-label { font-size: 10.5px; font-weight: 600; color: var(--text-dim); letter-spacing: 0.05em; text-transform: uppercase; }
+    .progress-count { font-size: 12px; font-weight: 700; color: var(--violet-light); font-family: var(--mono); }
+    .progress-track { height: 5px; background: rgba(255,255,255,0.07); border-radius: 99px; overflow: hidden; }
+    .progress-fill  { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--indigo), var(--violet)); transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1); box-shadow: 0 0 8px rgba(124,58,237,0.4); }
+    .progress-pct   { margin-top: 5px; font-size: 11px; color: var(--text-muted); font-family: var(--mono); }
+
+    .features { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 12px; animation: fadeUp 0.28s 0.06s ease both; }
+    .feat {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 11px; border-radius: 10px;
+      border: 1px solid var(--border); background: rgba(255,255,255,0.025); transition: all 0.15s;
+    }
+    .feat:hover { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); }
+    .feat-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .feat span { font-size: 11px; font-weight: 600; line-height: 1.2; }
+
+    .how { border-radius: 12px; padding: 13px; background: rgba(0,0,0,0.22); border: 1px solid var(--border); margin-bottom: 12px; animation: fadeUp 0.28s 0.1s ease both; }
+    .how-title {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: rgba(167,139,250,0.65); margin-bottom: 10px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .how-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(124,58,237,0.25), transparent); }
+    .how-steps { display: flex; flex-direction: column; gap: 7px; }
+    .how-step  { display: flex; align-items: center; gap: 10px; }
+    .step-num  {
+      width: 20px; height: 20px; border-radius: 6px;
+      background: rgba(124,58,237,0.12); border: 1px solid rgba(124,58,237,0.28);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; color: var(--violet-light); flex-shrink: 0; font-family: var(--mono);
+    }
+    .step-text { font-size: 12px; color: var(--text-dim); line-height: 1.4; }
+
+    .btn-primary {
+      width: 100%; padding: 12px; border-radius: 12px; border: none;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: white; font-size: 14px; font-weight: 700; font-family: var(--font);
+      cursor: pointer; transition: all 0.2s;
+      position: relative; overflow: hidden;
+      box-shadow: 0 4px 18px rgba(124,58,237,0.32); margin-bottom: 7px;
+      animation: fadeUp 0.28s 0.14s ease both;
+    }
+    .btn-primary::before { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(255,255,255,0.1), transparent 60%); pointer-events: none; }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 26px rgba(124,58,237,0.48); }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-ghost {
+      width: 100%; padding: 11px; border-radius: 12px;
+      border: 1px solid var(--border); background: rgba(255,255,255,0.03);
+      color: var(--text-dim); font-size: 13px; font-weight: 600;
+      font-family: var(--font); cursor: pointer; transition: all 0.15s;
+      animation: fadeUp 0.28s 0.17s ease both;
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.06); color: var(--text); border-color: rgba(255,255,255,0.12); }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
   </style>
-
-  <link rel="stylesheet" href="./assets/index-CyFKMuta.css">
-  <link rel="modulepreload" href="./assets/index-CZPNJmDf.js">
-  <script type="module" src="./assets/popup-BqrZethW.js"></script>
 </head>
-
 <body>
-  <div id="root"></div>
+<div class="shell">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+          <path d="M13 2L4.5 13.5H11L10 22L20 10H13.5L13 2Z" fill="white"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-name">FillAI</div>
+        <div class="logo-status setup" id="statusText">Checking…</div>
+      </div>
+    </div>
+    <button class="settings-btn" id="settingsBtn">Settings</button>
+  </header>
+
+  <div class="body">
+    <div class="hero">
+      <div class="hero-icon setup" id="heroIcon">
+        <svg id="heroSvg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>
+        </svg>
+      </div>
+      <h2 id="heroTitle">Loading…</h2>
+      <p id="heroDesc">Checking your saved profile.</p>
+      <div class="progress-wrap">
+        <div class="progress-row">
+          <span class="progress-label">Profile completion</span>
+          <span class="progress-count" id="progCount">0/5</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progFill" style="width:0%"></div>
+        </div>
+        <div class="progress-pct" id="progPct">0% ready</div>
+      </div>
+    </div>
+
+    <div class="features">
+      <div class="feat"><div class="feat-dot" style="background:#a78bfa"></div><span style="color:#a78bfa">Smart field detection</span></div>
+      <div class="feat"><div class="feat-dot" style="background:#818cf8"></div><span style="color:#818cf8">Profile + AI fallback</span></div>
+      <div class="feat"><div class="feat-dot" style="background:#4ade80"></div><span style="color:#4ade80">Data stays local</span></div>
+      <div class="feat"><div class="feat-dot" style="background:#38bdf8"></div><span style="color:#38bdf8">Works on most sites</span></div>
+    </div>
+
+    <div class="how">
+      <div class="how-title">How It Works</div>
+      <div class="how-steps">
+        <div class="how-step"><div class="step-num">1</div><div class="step-text">Save your profile details once.</div></div>
+        <div class="how-step"><div class="step-num">2</div><div class="step-text">Focus any text field on a website.</div></div>
+        <div class="how-step"><div class="step-num">3</div><div class="step-text">Click the FillAI bolt for instant fill.</div></div>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="primaryBtn">Complete Profile</button>
+    <button class="btn-ghost"   id="ghostBtn">Open Full Settings Page</button>
+  </div>
+</div>
+
+<script src="popup.js"></script>
 </body>
 </html>
