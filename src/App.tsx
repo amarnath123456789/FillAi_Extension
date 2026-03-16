@@ -3,7 +3,6 @@ import { OptionsPage } from './components/OptionsPage';
 import { PopupPage } from './components/PopupPage';
 import { TestPage } from './components/TestPage';
 import { ProfileProvider } from './store';
-import { LayoutTemplate } from 'lucide-react';
 
 type ViewMode = 'popup' | 'options';
 
@@ -47,7 +46,6 @@ export default function App() {
           style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.015)' }}
         >
           <div className="flex items-center gap-2">
-            <LayoutTemplate size={13} className="text-violet-500" />
             <span className="text-[12px] font-semibold text-gray-400 tracking-wide">Extension Preview</span>
           </div>
           <div

@@ -15,31 +15,31 @@ const SHADOW_CSS = `
 :host { all: initial; }
 .btn {
   width: 28px; height: 28px; border-radius: 7px;
-  border: 1px solid rgba(139,92,246,0.45);
-  background: rgba(10,8,24,0.88);
-  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-  box-shadow: 0 0 10px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
+  border: 1px solid rgba(200,241,53,0.5);
+  background: #c8f135;
+  color: #0e0e0e;
+  box-shadow: 0 0 10px rgba(200,241,53,0.3);
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   padding: 0; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
 }
 .btn:hover:not(:disabled) { transform: scale(1.1); }
 .btn:active:not(:disabled) { transform: scale(0.95); }
 .btn.instruction {
-  background: rgba(251,146,60,0.1); border-color: rgba(251,146,60,0.5);
-  box-shadow: 0 0 12px rgba(251,146,60,0.25), inset 0 1px 0 rgba(255,255,255,0.06);
+  background: #ff9800; border-color: #e68a00;
+  box-shadow: 0 0 12px rgba(255,152,0,0.4);
 }
-.btn.generating { background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.35); cursor: not-allowed; }
-.btn.success    { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.4); box-shadow: 0 0 10px rgba(16,185,129,0.25); }
-.btn.error      { background: rgba(239,68,68,0.12);  border-color: rgba(239,68,68,0.4);  box-shadow: 0 0 10px rgba(239,68,68,0.25); }
+.btn.generating { background: rgba(200,241,53,0.1); border-color: rgba(200,241,53,0.35); color: #c8f135; cursor: not-allowed; }
+.btn.success    { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.4); box-shadow: 0 0 10px rgba(16,185,129,0.25); color: #fff; }
+.btn.error      { background: rgba(239,68,68,0.12);  border-color: rgba(239,68,68,0.4);  box-shadow: 0 0 10px rgba(239,68,68,0.25); color: #fff; }
 .spinner {
   width: 12px; height: 12px;
-  border: 2px solid rgba(167,139,250,0.3); border-top-color: #a78bfa;
+  border: 2px solid rgba(200,241,53,0.3); border-top-color: #c8f135;
   border-radius: 50%; animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 `;
 
-const BOLT  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="blg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#6366f1"/></linearGradient></defs><path d="M13 2L4.5 13.5H11L10 22L20 10H13.5L13 2Z" fill="url(#blg)" stroke-linejoin="round"/></svg>`;
+const BOLT  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M13 2L4.5 13.5H11L10 22L20 10H13.5L13 2Z" fill="currentColor" stroke-linejoin="round"/></svg>`;
 const CHECK = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 const ERR   = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
 
@@ -136,9 +136,9 @@ function showToast(msg: string, type: 'success' | 'error') {
     position: 'fixed', bottom: '24px', right: '24px', zIndex: '2147483647',
     padding: '10px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: '600',
     fontFamily: 'system-ui, -apple-system, sans-serif',
-    color:      type === 'success' ? '#34d399'           : '#f87171',
-    background: type === 'success' ? 'rgba(6,78,59,0.92)' : 'rgba(69,10,10,0.92)',
-    border: `1px solid ${type === 'success' ? 'rgba(52,211,153,0.3)' : 'rgba(248,113,113,0.3)'}`,
+    color:      type === 'success' ? '#0e0e0e'           : '#f87171',
+    background: type === 'success' ? '#c8f135' : 'rgba(69,10,10,0.92)',
+    border: `1px solid ${type === 'success' ? '#a8d020' : 'rgba(248,113,113,0.3)'}`,
     backdropFilter: 'blur(8px)', boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
     transition: 'opacity 0.3s ease',
   });

@@ -1,379 +1,46 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FillAI</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
   <style>
-    /* ─── Reset ─── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-    /* ─── Tokens ─── */
     :root {
-      --black:   #0e0e0e;
-      --card:    #1a1a1a;
-      --card2:   #222222;
-      --border:  rgba(255,255,255,0.06);
-      --lime:    #c8f135;
-      --lime-dk: #a8d020;
-      --white:   #ffffff;
-      --muted:   #888888;
-      --dim:     #555555;
-      --font-display: 'Syne', sans-serif;
-      --font-body:    'Inter', sans-serif;
+      color-scheme: dark;
     }
 
-    /* ─── Base ─── */
     html, body {
-      width: 390px; height: 600px;
+      width: 400px;
+      height: 620px;
+      min-width: 400px;
+      min-height: 620px;
+      max-width: 400px;
+      max-height: 620px;
+      background: #070516;
       overflow: hidden;
-      background: var(--black);
-      font-family: var(--font-body);
-      color: var(--white);
-      -webkit-font-smoothing: antialiased;
+      font-family: Inter, system-ui, sans-serif;
     }
 
-    /* ─── Shell ─── */
-    .shell {
-      width: 100%; height: 100%;
-      display: flex; flex-direction: column;
-      background: var(--black);
-      position: relative; overflow: hidden;
-    }
-
-    /* Subtle noise grain overlay */
-    .shell::before {
-      content: '';
-      position: absolute; inset: 0; z-index: 0;
-      pointer-events: none;
-      opacity: 0.025;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-      background-size: 128px 128px;
-    }
-
-    /* ─── Header ─── */
-    .header {
-      position: relative; z-index: 10;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 18px 20px 14px;
-    }
-
-    .header-left { display: flex; align-items: center; gap: 10px; }
-
-    .logo-mark {
-      width: 38px; height: 38px; border-radius: 12px;
-      background: var(--lime);
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      box-shadow: 0 0 0 0 rgba(200,241,53,0.4);
-      animation: pulse-lime 3s ease-in-out infinite;
-    }
-    .logo-mark svg path { fill: var(--black); }
-
-    @keyframes pulse-lime {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(200,241,53,0.35); }
-      50%       { box-shadow: 0 0 0 8px rgba(200,241,53,0); }
-    }
-
-    .logo-text-wrap { line-height: 1; }
-    .logo-name {
-      font-family: var(--font-display);
-      font-size: 16px; font-weight: 800;
-      letter-spacing: -0.4px; color: var(--white);
-    }
-    .status-pill {
-      display: inline-flex; align-items: center;
-      margin-top: 3px;
-      font-size: 10.5px; font-weight: 600;
-      padding: 2px 8px; border-radius: 99px;
-      letter-spacing: 0.01em;
-    }
-    .status-pill.ready { background: rgba(200,241,53,0.12); color: var(--lime); }
-    .status-pill.setup { background: rgba(255,170,0,0.12); color: #ffaa00; }
-
-    .icon-btn {
-      width: 38px; height: 38px; border-radius: 12px;
-      background: var(--card); border: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; color: var(--muted);
-      transition: background 0.18s, color 0.18s, transform 0.12s;
-      position: relative; overflow: hidden;
-    }
-    .icon-btn:hover  { background: var(--card2); color: var(--white); }
-    .icon-btn.pressed { transform: scale(0.91); background: #2a2a2a; }
-
-    /* ─── Scrollable Body ─── */
-    .body {
-      flex: 1; overflow-y: auto; overflow-x: hidden;
-      padding: 4px 16px 16px;
-      position: relative; z-index: 5;
-      scrollbar-width: none;
-    }
-    .body::-webkit-scrollbar { display: none; }
-
-    /* ─── Hero Card ─── */
-    .hero-card {
-      border-radius: 24px; padding: 20px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      margin-bottom: 12px;
-      position: relative; overflow: hidden;
-      transition: border-color 0.4s;
-    }
-    .hero-card.is-ready { border-color: rgba(200,241,53,0.25); }
-    .hero-card::after {
-      content: '';
-      position: absolute; top: -60px; right: -60px;
-      width: 160px; height: 160px; border-radius: 50%;
-      background: radial-gradient(circle, rgba(200,241,53,0.06) 0%, transparent 70%);
-      pointer-events: none;
-      transition: opacity 0.4s;
-    }
-
-    .hero-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
-
-    .hero-icon-wrap {
-      width: 52px; height: 52px; border-radius: 16px;
-      display: flex; align-items: center; justify-content: center;
-      background: var(--card2); border: 1px solid var(--border);
-      color: var(--muted);
-      transition: background 0.3s, color 0.3s, border-color 0.3s;
-    }
-    .is-ready .hero-icon-wrap {
-      background: rgba(200,241,53,0.1); border-color: rgba(200,241,53,0.3); color: var(--lime);
-    }
-
-    .hero-label {
-      font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
-      text-transform: uppercase; color: var(--dim);
-      background: var(--card2); padding: 4px 10px; border-radius: 99px;
-      border: 1px solid var(--border);
-    }
-
-    .hero-title {
-      font-family: var(--font-display);
-      font-size: 22px; font-weight: 800;
-      letter-spacing: -0.5px; line-height: 1.15;
-      margin-bottom: 5px; color: var(--white);
-    }
-
-    .hero-desc { font-size: 12.5px; color: var(--muted); line-height: 1.5; margin-bottom: 16px; }
-
-    /* Progress bar */
-    .prog-row {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 8px;
-    }
-    .prog-label { font-size: 11px; font-weight: 600; color: var(--muted); }
-    .prog-nums  { font-size: 12px; font-weight: 700; color: var(--white); font-family: var(--font-display); }
-    .prog-nums span { color: var(--lime); }
-
-    .prog-track {
-      height: 6px; background: rgba(255,255,255,0.08);
-      border-radius: 99px; overflow: hidden; margin-bottom: 6px;
-    }
-    .prog-fill {
-      height: 100%; width: 0%; border-radius: 99px;
-      background: var(--lime);
-      transition: width 0.8s cubic-bezier(0.34,1.56,0.64,1);
-      box-shadow: 0 0 12px rgba(200,241,53,0.5);
-    }
-    .prog-sub { font-size: 10.5px; color: var(--dim); }
-
-    /* ─── Feature Pills ─── */
-    .feat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-
-    .feat-pill {
-      display: flex; align-items: center; gap: 8px;
-      padding: 10px 12px; border-radius: 16px;
-      background: var(--card); border: 1px solid var(--border);
-      cursor: default; transition: background 0.15s, border-color 0.15s, transform 0.12s;
-      position: relative; overflow: hidden;
-    }
-    .feat-pill:hover { background: var(--card2); border-color: rgba(255,255,255,0.1); transform: translateY(-1px); }
-
-    .feat-dot {
-      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
-    }
-    .feat-pill span { font-size: 11px; font-weight: 600; line-height: 1.25; }
-
-    /* ─── How it works ─── */
-    .how-card {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: 20px; padding: 16px; margin-bottom: 12px;
-    }
-    .how-header {
-      display: flex; align-items: center; gap: 6px;
-      font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
-      text-transform: uppercase; color: var(--dim);
-      margin-bottom: 14px;
-    }
-    .how-header::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-
-    .how-steps { display: flex; flex-direction: column; gap: 10px; }
-    .how-step  { display: flex; align-items: center; gap: 10px; }
-    .step-num  {
-      width: 22px; height: 22px; border-radius: 8px; flex-shrink: 0;
-      background: rgba(200,241,53,0.08); border: 1px solid rgba(200,241,53,0.2);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 11px; font-weight: 800; color: var(--lime);
-      font-family: var(--font-display);
-    }
-    .step-text { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
-    .step-text b { color: var(--white); font-weight: 600; }
-
-    /* ─── Buttons ─── */
-    .btn-primary {
-      width: 100%; padding: 15px;
-      border-radius: 18px; border: none;
-      background: var(--lime); color: var(--black);
-      font-family: var(--font-display);
-      font-size: 15px; font-weight: 800;
-      cursor: pointer; letter-spacing: -0.2px;
-      transition: background 0.18s, transform 0.12s, box-shadow 0.18s;
-      position: relative; overflow: hidden;
-      box-shadow: 0 4px 24px rgba(200,241,53,0.25);
-      margin-bottom: 8px;
-    }
-    .btn-primary:hover  { background: #d4f94a; box-shadow: 0 6px 32px rgba(200,241,53,0.4); transform: translateY(-1px); }
-    .btn-primary.pressed { transform: scale(0.97) translateY(1px); box-shadow: 0 2px 10px rgba(200,241,53,0.2); background: var(--lime-dk); }
-
-    .btn-ghost {
-      width: 100%; padding: 14px;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,0.1);
-      background: transparent; color: var(--muted);
-      font-family: var(--font-body);
-      font-size: 13.5px; font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.12s;
-      position: relative; overflow: hidden;
-    }
-    .btn-ghost:hover  { background: var(--card); color: var(--white); border-color: rgba(255,255,255,0.18); transform: translateY(-1px); }
-    .btn-ghost.pressed { transform: scale(0.97); background: var(--card2); }
-
-    /* Ripple */
-    .ripple {
-      position: absolute; border-radius: 50%;
-      background: rgba(255,255,255,0.15);
-      transform: scale(0); animation: ripple-out 0.55s ease-out forwards;
-      pointer-events: none;
-    }
-    @keyframes ripple-out {
-      to { transform: scale(1); opacity: 0; }
-    }
-
-    /* ─── Stagger entrance ─── */
-    [data-stagger] {
-      opacity: 0; transform: translateY(14px);
-    }
-    .stagger-in {
-      animation: slide-up 0.4s cubic-bezier(0.22,1,0.36,1) forwards;
-    }
-    @keyframes slide-up {
-      to { opacity: 1; transform: translateY(0); }
+    #root {
+      width: 100%;
+      height: 100%;
+      display: flex;
     }
   </style>
+
+  <script type="module" crossorigin src="./assets/popup-CybeHd33.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/index-zHi7Eryr.js">
+  <link rel="stylesheet" crossorigin href="./assets/index-De7atuPT.css">
 </head>
+
 <body>
-<div class="shell">
-  <!-- Header -->
-  <div class="header">
-    <div class="header-left">
-      <div class="logo-mark">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-          <path d="M13 2L4.5 13.5H11L10 22L20 10H13.5L13 2Z" fill="black"/>
-        </svg>
-      </div>
-      <div class="logo-text-wrap">
-        <div class="logo-name">FillAI</div>
-        <div class="status-pill setup" id="statusText">● Checking…</div>
-      </div>
-    </div>
-    <button class="icon-btn tappable" id="settingsBtn" title="Settings">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-        <circle cx="12" cy="12" r="3"/>
-      </svg>
-    </button>
-  </div>
-
-  <!-- Scrollable body -->
-  <div class="body">
-
-    <!-- Hero card -->
-    <div class="hero-card" id="heroCard" data-stagger>
-      <div class="hero-top">
-        <div class="hero-icon-wrap" id="heroIcon">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>
-          </svg>
-        </div>
-        <span class="hero-label">Autofill</span>
-      </div>
-      <div class="hero-title" id="heroTitle">Loading…</div>
-      <div class="hero-desc"  id="heroDesc">Checking your saved profile data.</div>
-
-      <div class="prog-row">
-        <span class="prog-label">Profile completion</span>
-        <span class="prog-nums"><span id="progCount">0</span>/5</span>
-      </div>
-      <div class="prog-track">
-        <div class="prog-fill" id="progFill"></div>
-      </div>
-      <div class="prog-sub" id="progPct">0% ready</div>
-    </div>
-
-    <!-- Feature pills -->
-    <div class="feat-grid" data-stagger>
-      <div class="feat-pill tappable">
-        <div class="feat-dot" style="background:#c8f135"></div>
-        <span style="color:#c8f135">Smart detection</span>
-      </div>
-      <div class="feat-pill tappable">
-        <div class="feat-dot" style="background:#818cf8"></div>
-        <span style="color:#818cf8">AI fallback</span>
-      </div>
-      <div class="feat-pill tappable">
-        <div class="feat-dot" style="background:#4ade80"></div>
-        <span style="color:#4ade80">Stays local</span>
-      </div>
-      <div class="feat-pill tappable">
-        <div class="feat-dot" style="background:#38bdf8"></div>
-        <span style="color:#38bdf8">Most sites</span>
-      </div>
-    </div>
-
-    <!-- How it works -->
-    <div class="how-card" data-stagger>
-      <div class="how-header">How It Works</div>
-      <div class="how-steps">
-        <div class="how-step">
-          <div class="step-num">1</div>
-          <div class="step-text"><b>Save</b> your profile details once.</div>
-        </div>
-        <div class="how-step">
-          <div class="step-num">2</div>
-          <div class="step-text"><b>Focus</b> any text field on any site.</div>
-        </div>
-        <div class="how-step">
-          <div class="step-num">3</div>
-          <div class="step-text"><b>Click</b> the FillAI bolt for instant fill.</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- CTAs -->
-    <div data-stagger>
-      <button class="btn-primary tappable" id="primaryBtn">Complete Profile</button>
-      <button class="btn-ghost tappable"   id="ghostBtn">Open Full Settings</button>
-    </div>
-
-  </div><!-- /body -->
-</div><!-- /shell -->
-
-<script src="popup.js"></script>
+  <div id="root"></div>
 </body>
 </html>

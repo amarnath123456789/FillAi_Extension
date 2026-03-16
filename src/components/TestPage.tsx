@@ -2,19 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { generateFieldResponse } from '../services/llm';
 import { getHeuristicFill } from '../services/heuristics';
 import { useProfile } from '../store';
-import { Loader2, Check, AlertCircle } from 'lucide-react';
 
 function BoltIcon({ size = 14 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <defs>
-        <linearGradient id="bolt-lg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#a78bfa" />
-          <stop offset="100%" stopColor="#6366f1" />
-        </linearGradient>
-      </defs>
       <path d="M13 2L4.5 13.5H11L10 22L20 10H13.5L13 2Z"
-        fill="url(#bolt-lg)" strokeLinejoin="round" />
+        fill="currentColor" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -218,11 +211,11 @@ export function TestPage() {
   const getButtonContent = () => {
     switch (fillStatus) {
       case 'generating':
-        return <Loader2 size={13} className="animate-spin text-violet-400" />;
+        return <span>Loading</span>;
       case 'success':
-        return <Check size={13} className="text-emerald-400" />;
+        return <span>OK</span>;
       case 'error':
-        return <AlertCircle size={13} className="text-red-400" />;
+        return <span>Error</span>;
       default:
         return <BoltIcon size={14} />;
     }
@@ -244,106 +237,112 @@ export function TestPage() {
         };
       case 'generating':
         return {
-          background: 'rgba(139,92,246,0.1)',
-          border: '1px solid rgba(139,92,246,0.35)',
-          boxShadow: '0 0 8px rgba(124,58,237,0.2)',
+          background: 'rgba(200,241,53,0.1)',
+          border: '1px solid rgba(200,241,53,0.35)',
+          boxShadow: '0 0 8px rgba(200,241,53,0.2)',
+          color: '#c8f135',
         };
       default:
-        // Instruction mode: user has text in the field — show amber/warm glow to indicate it
+        // Instruction mode: user has text in the field
         if (hasInstruction) {
           return {
-            background: 'rgba(251,146,60,0.1)',
-            border: '1px solid rgba(251,146,60,0.5)',
-            boxShadow: '0 0 12px rgba(251,146,60,0.25), inset 0 1px 0 rgba(255,255,255,0.06)',
-            backdropFilter: 'blur(8px)',
+            background: '#ff9800', // orange
+            color: '#0e0e0e',
+            border: '1px solid #e68a00',
+            boxShadow: '0 0 12px rgba(255,152,0,0.4)',
           };
         }
         return {
-          background: 'rgba(10,8,24,0.7)',
-          border: '1px solid rgba(139,92,246,0.45)',
-          boxShadow: '0 0 10px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.06)',
-          backdropFilter: 'blur(8px)',
+          background: '#c8f135', // lime
+          color: '#0e0e0e',      // black
+          border: '1px solid rgba(200,241,53,0.5)',
+          boxShadow: '0 0 10px rgba(200,241,53,0.3)',
         };
     }
   };
 
   return (
-    <div ref={containerRef} className="relative h-full overflow-y-auto bg-[#050505] p-8 custom-scrollbar">
+    <div ref={containerRef} className="custom-scrollbar" style={{ position: 'relative', height: '100%', overflowY: 'auto', padding: '64px', background: 'var(--black)' }}>
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
-          <div className={`px-4 py-2 rounded-full shadow-lg text-sm font-medium flex items-center gap-2 border ${
-            toastMessage.type === 'success' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'
-          }`}>
-            {toastMessage.type === 'success' ? <Check size={16} /> : <AlertCircle size={16} />}
-            {toastMessage.text}
-          </div>
+        <div style={{
+          position: 'fixed', top: '16px', left: '50%', transform: 'translateX(-50%)', zIndex: 50,
+          background: toastMessage.type === 'success' ? 'var(--lime, #c8f135)' : 'rgba(239,68,68,0.1)',
+          border: '1px solid',
+          borderColor: toastMessage.type === 'success' ? 'var(--lime-dk, #a8d020)' : 'rgba(239,68,68,0.2)',
+          color: toastMessage.type === 'success' ? 'var(--black, #0e0e0e)' : '#ef4444',
+          padding: '8px 16px', borderRadius: '999px', fontSize: '14px', fontWeight: 600,
+          display: 'flex', alignItems: 'center', gap: '8px',
+          boxShadow: '0 4px 12px rgba(200,241,53,0.2)'
+        }}>
+          {toastMessage.type === 'success' ? <span>✓</span> : <span>Error</span>}
+          {toastMessage.text}
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto glass-card p-8">
-        <div className="mb-8 border-b border-white/10 pb-6">
-          <h1 className="text-3xl font-bold text-white mb-2">Acme Corp Job Application</h1>
-          <p className="text-gray-400">Please fill out the form below to apply for the Senior Frontend Engineer position.</p>
+      <div className="card" style={{ padding: '40px', maxWidth: '640px', margin: '0 auto' }}>
+        <div style={{ marginBottom: '32px', paddingBottom: '24px', borderBottom: '1px solid var(--border)' }}>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', fontWeight: 800, color: 'var(--white)', marginBottom: '8px', letterSpacing: '-0.5px' }}>Acme Corp Job Application</h1>
+          <p style={{ color: 'var(--muted)', fontSize: '14px', lineHeight: '1.5' }}>Please fill out the form below to apply for the Senior Frontend Engineer position.</p>
         </div>
 
-        <form className="space-y-6" onSubmit={e => e.preventDefault()}>
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="firstName" className="block text-sm font-medium text-gray-300 mb-1">First Name</label>
-              <input type="text" id="firstName" name="firstName" className="w-full p-3 rounded-lg dark-input" />
+        <form onSubmit={e => e.preventDefault()}>
+          <div className="grid-3 mb-16" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <div className="field">
+              <label htmlFor="firstName" className="field-label">First Name</label>
+              <input type="text" id="firstName" name="firstName" className="input" />
             </div>
-            <div>
-              <label htmlFor="lastName" className="block text-sm font-medium text-gray-300 mb-1">Last Name</label>
-              <input type="text" id="lastName" name="lastName" className="w-full p-3 rounded-lg dark-input" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="dob" className="block text-sm font-medium text-gray-300 mb-1">Date of Birth</label>
-              <input type="date" id="dob" name="dob" className="w-full p-3 rounded-lg dark-input text-gray-300" />
-            </div>
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-300 mb-1">Phone Number</label>
-              <input type="text" id="phone" name="phone" className="w-full p-3 rounded-lg dark-input" />
+            <div className="field">
+              <label htmlFor="lastName" className="field-label">Last Name</label>
+              <input type="text" id="lastName" name="lastName" className="input" />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="education" className="block text-sm font-medium text-gray-300 mb-1">Highest Education</label>
-              <input type="text" id="education" name="education" placeholder="e.g., B.S. Computer Science" className="w-full p-3 rounded-lg dark-input" />
+          <div className="grid-3 mb-16" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <div className="field">
+              <label htmlFor="dob" className="field-label">Date of Birth</label>
+              <input type="date" id="dob" name="dob" className="input" />
             </div>
-            <div>
-              <label htmlFor="certifications" className="block text-sm font-medium text-gray-300 mb-1">Certifications</label>
-              <input type="text" id="certifications" name="certifications" placeholder="e.g., AWS Certified" className="w-full p-3 rounded-lg dark-input" />
+            <div className="field">
+              <label htmlFor="phone" className="field-label">Phone Number</label>
+              <input type="text" id="phone" name="phone" className="input" />
             </div>
           </div>
 
-          <div>
-            <label htmlFor="portfolio" className="block text-sm font-medium text-gray-300 mb-1">Portfolio / Personal Website</label>
-            <input type="text" id="portfolio" name="portfolio" placeholder="https://" className="w-full p-3 rounded-lg dark-input" />
+          <div className="grid-3 mb-16" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <div className="field">
+              <label htmlFor="education" className="field-label">Highest Education</label>
+              <input type="text" id="education" name="education" placeholder="e.g., B.S. Computer Science" className="input" />
+            </div>
+            <div className="field">
+              <label htmlFor="certifications" className="field-label">Certifications</label>
+              <input type="text" id="certifications" name="certifications" placeholder="e.g., AWS Certified" className="input" />
+            </div>
           </div>
 
-          <div>
-            <label htmlFor="about" className="block text-sm font-medium text-gray-300 mb-1">Tell us about yourself</label>
-            <p className="text-xs text-gray-500 mb-2">Briefly describe your background and what you're currently working on.</p>
-            <textarea id="about" name="about" rows={4} className="w-full p-3 rounded-lg dark-input resize-y" />
+          <div className="field mb-16">
+            <label htmlFor="portfolio" className="field-label">Portfolio / Personal Website</label>
+            <input type="text" id="portfolio" name="portfolio" placeholder="https://" className="input" />
           </div>
 
-          <div>
-            <label htmlFor="why" className="block text-sm font-medium text-gray-300 mb-1">Why do you want to work at Acme Corp?</label>
-            <textarea id="why" name="why" rows={4} placeholder="What excites you about our mission?" className="w-full p-3 rounded-lg dark-input resize-y" />
+          <div className="field mb-16">
+            <label htmlFor="about" className="field-label">Tell us about yourself</label>
+            <p style={{ fontSize: '12px', color: 'var(--dim)', marginBottom: '8px' }}>Briefly describe your background and what you're currently working on.</p>
+            <textarea id="about" name="about" rows={4} className="textarea" style={{ width: '100%', resize: 'vertical' }} />
           </div>
 
-          <div>
-            <label htmlFor="challenge" className="block text-sm font-medium text-gray-300 mb-1">Describe a difficult technical challenge you've overcome</label>
-            <textarea id="challenge" name="challenge" rows={5} className="w-full p-3 rounded-lg dark-input resize-y" />
+          <div className="field mb-16">
+            <label htmlFor="why" className="field-label">Why do you want to work at Acme Corp?</label>
+            <textarea id="why" name="why" rows={4} placeholder="What excites you about our mission?" className="textarea" style={{ width: '100%', resize: 'vertical' }} />
           </div>
 
-          <div className="pt-4">
-            <button type="button" className="purple-btn px-6 py-3 rounded-lg font-medium w-full sm:w-auto">
+          <div className="field mb-24">
+            <label htmlFor="challenge" className="field-label">Describe a difficult technical challenge you've overcome</label>
+            <textarea id="challenge" name="challenge" rows={5} className="textarea" style={{ width: '100%', resize: 'vertical' }} />
+          </div>
+
+          <div style={{ paddingTop: '16px' }}>
+            <button type="button" className="save-btn" style={{ width: '100%' }}>
               Submit Application
             </button>
           </div>
@@ -364,8 +363,13 @@ export function TestPage() {
           }}
           onClick={handleFillClick}
           disabled={fillStatus === 'generating'}
-          style={{ top: buttonPos.top, left: buttonPos.left, ...getButtonStyle() }}
-          className="absolute z-50 p-1.5 rounded-lg transition-all duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:scale-110 active:scale-95"
+          style={{ 
+            position: 'absolute', zIndex: 50, padding: '6px', borderRadius: '8px', 
+            transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: fillStatus === 'generating' ? 'not-allowed' : 'pointer',
+            opacity: fillStatus === 'generating' ? 0.5 : 1,
+            top: buttonPos.top, left: buttonPos.left, ...getButtonStyle() 
+          }}
           title={hasInstruction ? 'FillAI — using your text as instruction' : 'FillAI — auto-fill this field'}
         >
           {getButtonContent()}
