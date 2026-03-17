@@ -1,5 +1,6 @@
 import { getHeuristicFill } from '../services/heuristics';
 import { UserProfile, defaultProfile } from '../types';
+import { classifyField } from '../utils/classifier';
 
 // ── Message types ────────────────────────────────────────────────────────────
 interface GenerateRequest {
@@ -20,7 +21,8 @@ const SHADOW_CSS = `
   color: #0e0e0e;
   box-shadow: 0 0 10px rgba(200,241,53,0.3);
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  padding: 0; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  padding: 0; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
 }
 .btn:hover:not(:disabled) { transform: scale(1.1); }
 .btn:active:not(:disabled) { transform: scale(0.95); }
@@ -28,20 +30,48 @@ const SHADOW_CSS = `
   background: #ff9800; border-color: #e68a00;
   box-shadow: 0 0 12px rgba(255,152,0,0.4);
 }
-.btn.generating { background: rgba(200,241,53,0.1); border-color: rgba(200,241,53,0.35); color: #c8f135; cursor: not-allowed; }
-.btn.success    { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.4); box-shadow: 0 0 10px rgba(16,185,129,0.25); color: #fff; }
-.btn.error      { background: rgba(239,68,68,0.12);  border-color: rgba(239,68,68,0.4);  box-shadow: 0 0 10px rgba(239,68,68,0.25); color: #fff; }
-.spinner {
-  width: 12px; height: 12px;
-  border: 2px solid rgba(200,241,53,0.3); border-top-color: #c8f135;
-  border-radius: 50%; animation: spin 0.7s linear infinite;
+.btn.generating { 
+  background: rgba(200,241,53,0.05); 
+  border-color: rgba(200,241,53,0.4); 
+  color: #c8f135; 
+  cursor: not-allowed; 
 }
+.btn.success { 
+  background: #c8f135; 
+  border-color: #a8d020; 
+  box-shadow: 0 0 15px rgba(200,241,53,0.5); 
+  color: #0e0e0e; 
+}
+.btn.error { 
+  background: #ef4444;  
+  border-color: #dc2626;  
+  box-shadow: 0 0 12px rgba(239,68,68,0.4); 
+  color: #fff; 
+}
+
+/* Spinner & Success Animation */
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(200,241,53,0.2);
+  border-top-color: #c8f135;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.check-svg { width: 14px; height: 14px; stroke: currentColor; }
+.check-path {
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+  animation: draw-check 0.4s ease forwards;
+}
+
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes draw-check { to { stroke-dashoffset: 0; } }
 `;
 
-const BOLT  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M13 2L4.5 13.5H11L10 22L20 10H13.5L13 2Z" fill="currentColor" stroke-linejoin="round"/></svg>`;
-const CHECK = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-const ERR   = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+const BOLT  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13.5H11L10 22L20 10H13.5L13 2Z" fill="currentColor"/></svg>`;
+const CHECK = `<svg class="check-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline class="check-path" points="20 6 9 17 4 12"/></svg>`;
+const ERR   = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
 
 // ── State ────────────────────────────────────────────────────────────────────
 let activeField: HTMLInputElement | HTMLTextAreaElement | null = null;
@@ -137,9 +167,9 @@ function showToast(msg: string, type: 'success' | 'error') {
     padding: '10px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: '600',
     fontFamily: 'system-ui, -apple-system, sans-serif',
     color:      type === 'success' ? '#0e0e0e'           : '#f87171',
-    background: type === 'success' ? '#c8f135' : 'rgba(69,10,10,0.92)',
-    border: `1px solid ${type === 'success' ? '#a8d020' : 'rgba(248,113,113,0.3)'}`,
-    backdropFilter: 'blur(8px)', boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+    background: type === 'success' ? '#c8f135'           : 'rgba(69,10,10,0.92)',
+    border:     `1px solid ${type === 'success' ? '#a8d020' : 'rgba(248,113,113,0.3)'}`,
+    backdropFilter: 'blur(8px)', boxShadow: type === 'success' ? '0 4px 24px rgba(200,241,53,0.3)' : '0 4px 24px rgba(0,0,0,0.4)',
     transition: 'opacity 0.3s ease',
   });
   document.body.appendChild(el);
@@ -216,13 +246,17 @@ async function handleClick(e: MouseEvent) {
     let result: string | null = null;
     let mode: 'profile' | 'instruction' | 'ai' = 'ai';
 
-    if (!userInstruction) {
+    const classifierResult = classifyField(ctx);
+    const shouldTryHeuristics = classifierResult.type !== 'essay' && classifierResult.type !== 'unknown';
+
+    if (!userInstruction && shouldTryHeuristics) {
       result = getHeuristicFill(profile, ctx);
       if (result) mode = 'profile';
     }
 
     if (!result) {
       mode = userInstruction ? 'instruction' : 'ai';
+
       const resp = await sendToBackground({
         type: 'FILLAI_GENERATE', profile, fieldContext: ctx,
         userInstruction: userInstruction || undefined,

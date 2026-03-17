@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { generateFieldResponse } from '../services/llm';
 import { getHeuristicFill } from '../services/heuristics';
 import { useProfile } from '../store';
+import { classifyField, ClassifierResult } from '../utils/classifier';
 
 function BoltIcon({ size = 14 }: { size?: number }) {
   return (
@@ -21,6 +22,7 @@ export function TestPage() {
   const [fillStatus, setFillStatus] = useState<FillStatus>('idle');
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [hasInstruction, setHasInstruction] = useState(false);
+  const [classifierResult, setClassifierResult] = useState<ClassifierResult | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const isGeneratingRef = useRef(fillStatus === 'generating');
@@ -56,6 +58,18 @@ export function TestPage() {
         setActiveField(target);
         updateButtonPosition(target);
         setFillStatus('idle'); // Reset status when focusing a new field
+
+        // RUN CLASSIFIER
+        const labelEl = target.id ? document.querySelector(`label[for="${target.id}"]`) : null;
+        const labelText = labelEl ? labelEl.textContent || '' : '';
+        const context = {
+          label: labelText.trim(),
+          placeholder: target.getAttribute('placeholder') || '',
+          name: target.getAttribute('name') || '',
+          id: target.id || '',
+          type: target.tagName.toLowerCase() === 'textarea' ? 'textarea' : (target as HTMLInputElement).type,
+        };
+        setClassifierResult(classifyField(context));
       }
     };
 
@@ -68,6 +82,7 @@ export function TestPage() {
       setTimeout(() => {
         if (document.activeElement !== activeField && document.activeElement?.id !== 'quickfill-btn') {
           setActiveField(null);
+          setClassifierResult(null);
         }
       }, 150);
     };
@@ -162,8 +177,15 @@ export function TestPage() {
         fillMode = 'instruction';
         response = await generateFieldResponse(profile, context, { userInstruction });
       } else {
-        // No existing text: try fast heuristic match first
-        response = getHeuristicFill(profile, context);
+        // No existing text: use classifier to decide if we should try heuristic match first
+        // If it's an essay or we forcibly categorized it as such, skip heuristics and go to LLM.
+        // Also skip heuristics if confidence is very low (unknown), to force LLM context understanding.
+        const shouldTryHeuristics = classifierResult && classifierResult.type !== 'essay' && classifierResult.type !== 'unknown';
+
+        if (shouldTryHeuristics) {
+          response = getHeuristicFill(profile, context);
+        }
+
         if (response) {
           fillMode = 'profile';
         } else {
@@ -171,6 +193,7 @@ export function TestPage() {
           response = await generateFieldResponse(profile, context);
         }
       }
+
 
       if (!response) throw new Error('Could not generate a response for this field.');
 
@@ -374,6 +397,61 @@ export function TestPage() {
         >
           {getButtonContent()}
         </button>
+      )}
+
+      {/* Classifier Debug Overlay */}
+      {classifierResult && (
+        <div style={{
+          position: 'fixed', bottom: '16px', left: '16px', zIndex: 100,
+          background: 'rgba(10,10,10,0.95)', border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: '12px', padding: '16px', fontSize: '11px', color: '#fff',
+          width: '260px', backdropFilter: 'blur(12px)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          display: 'flex', flexDirection: 'column', gap: '8px',
+          animation: 'slideIn 0.3s ease-out'
+        }}>
+          <style>{`
+            @keyframes slideIn {
+              from { transform: translateY(20px); opacity: 0; }
+              to { transform: translateY(0); opacity: 1; }
+            }
+          `}</style>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: 'rgba(255,255,255,0.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Classifier Output</span>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: classifierResult.confidence > 0.7 ? '#c8f135' : '#ff9800' }}></div>
+          </div>
+          
+          <div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: '#c8f135', marginBottom: '2px', textTransform: 'capitalize' }}>
+              {classifierResult.type.replace('_', ' ')}
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px' }}>
+              Confidence: <span style={{ color: '#fff', fontWeight: 600 }}>{(classifierResult.confidence * 100).toFixed(0)}%</span>
+            </div>
+          </div>
+
+          {classifierResult.matchedKeywords && classifierResult.matchedKeywords.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
+              {classifierResult.matchedKeywords.map((kw, i) => (
+                <span key={i} style={{ 
+                  background: 'rgba(200,241,53,0.1)', 
+                  border: '1px solid rgba(200,241,53,0.2)',
+                  padding: '2px 8px', borderRadius: '6px', color: '#c8f135',
+                  fontSize: '10px'
+                }}>
+                  {kw}
+                </span>
+              ))}
+            </div>
+          )}
+          
+          <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)', margin: '4px 0' }}></div>
+          
+          <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic', display: 'flex', justifyContent: 'space-between' }}>
+            <span>ID: {activeField?.id || 'none'}</span>
+            <span>Name: {activeField?.getAttribute('name') || 'none'}</span>
+          </div>
+        </div>
       )}
     </div>
   );

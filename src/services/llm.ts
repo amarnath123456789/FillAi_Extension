@@ -15,16 +15,16 @@ function getClient(explicitKey?: string): GoogleGenAI {
   return _devAi;
 }
 
-const SYSTEM_INSTRUCTION = `\
-You are FillAI, an expert AI assistant that fills job application and professional form fields on behalf of the user.
-
-STRICT OUTPUT RULES — read carefully:
-1. Output ONLY the final text that should appear in the field. No quotes, no markdown, no prefixes, no explanations, no "Here is…" openers.
-2. For simple data fields (name, email, phone, URL, years): output only that exact piece of data, nothing else.
-3. For descriptive or essay fields (bio, cover letter, "why us", challenge, summary, or "textarea" inputs): write naturally in first person. Expand on the point generously (produce a rich, detailed response of at least 100-200 words unless instructed otherwise). Overcome brevity! Avoid bullet points unless the field label implies them.
-4. Grounding: base your response primarily on the provided profile data. For descriptive fields (like challenges or cover letters), if exact details are missing, extrapolate reasonably and plausibly from the user's skills, role, and experience to provide a complete, substantial answer. Do not leave the field blank or refuse to answer.
-5. User instruction: if a "User Instruction" section is present, treat it as the user's direct directive — honour the requested tone, style, length, or any specific rewording. The instruction takes priority over default style choices.
-6. Writing quality: aim for authentic, human-sounding prose — clear, confident, and specific. Avoid corporate buzzword overuse (e.g. "leverage synergies"), excessive self-praise, or generic filler.`;
+const SYSTEM_INSTRUCTION = `Act as FillAI, an expert for filling job forms.
+RULES:
+1. ONLY output field value. No quotes, markdown, or intros.
+2. Simple data: Output exact value only.
+3. Essays/Textareas: Write 1st person, 100-200 words. No bullets.
+4. Grounding: Use profile. If details missing, extrapolate plausibly from skills/role. Never leave blank.
+5. User Instruction: This is top priority. Honor requested style/length.
+6. Style: Human-sounding, specific, confident. No generic buzzwords.
+7. Bio Weight: Use "Bio / Summary" as primary source for identity and tone.
+8. Completeness: Never stop mid-sentence. Ensure every thought is fully concluded within the output rules.`;
 
 function extractModelText(response: unknown): string {
   if (!response || typeof response !== 'object') return '';
@@ -92,10 +92,10 @@ export async function generateFieldResponse(
   add('Years of Experience',profile.yearsOfExperience);
   add('Education',          profile.education);
   add('Certifications',     profile.certifications);
-  add('Bio / Summary',      profile.bio);
   add('Skills',             profile.skills);
   add('Achievements',       profile.achievements);
   add('Other Details',      profile.otherDetails);
+
 
   const fieldLines: string[] = [];
   if (fieldContext.label)       fieldLines.push(`Label: ${fieldContext.label}`);
@@ -105,13 +105,18 @@ export async function generateFieldResponse(
   if (fieldContext.type)        fieldLines.push(`Input type: ${fieldContext.type}`);
 
   const instructionSection = options?.userInstruction
-    ? `\n## User Instruction\n"${options.userInstruction}"\n(Apply the above as a style/tone/content directive. If it reads like a partial draft, build upon it naturally.)\n`
+    ? `\n## CRITICAL: USER DIRECTIVE / INSTRUCTION\n"${options.userInstruction}"\n(You MUST prioritize this instruction. If it asks for specific content like a "hackathon", ensure you bridge it naturally into the job context without stopping abruptly.)\n`
+    : '';
+
+
+  const bioSection = profile.bio?.trim()
+    ? `\n## Applicant's Core Bio / Summary (CRITICAL CONTEXT)\n${profile.bio.trim()}\n(Always ensure the generated text aligns closely with this bio.)\n`
     : '';
 
   const prompt = `\
 ## Applicant Profile
-${profileLines.join('\n') || '(no profile data provided)'}
-
+${profileLines.join('\n') || '(no standard profile data provided)'}
+${bioSection}
 ## Target Field
 ${fieldLines.join('\n') || '(no field context)'}
 ${instructionSection}
