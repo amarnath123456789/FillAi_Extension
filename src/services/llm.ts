@@ -80,29 +80,29 @@ export async function generateFieldResponse(
   // Build a compact, non-empty-only profile section
   const profileLines: string[] = [];
   const add = (key: string, val: string) => { if (val?.trim()) profileLines.push(`${key}: ${val.trim()}`); };
-  add('Full Name',          profile.fullName);
-  add('Email',              profile.email);
-  add('Phone',              profile.phone);
-  add('Date of Birth',      profile.dob);
-  add('Address',            profile.address);
-  add('LinkedIn',           profile.linkedin);
-  add('GitHub',             profile.github);
-  add('Portfolio',          profile.portfolio);
-  add('Current Role',       profile.currentRole);
-  add('Years of Experience',profile.yearsOfExperience);
-  add('Education',          profile.education);
-  add('Certifications',     profile.certifications);
-  add('Skills',             profile.skills);
-  add('Achievements',       profile.achievements);
-  add('Other Details',      profile.otherDetails);
+  add('Full Name', profile.fullName);
+  add('Email', profile.email);
+  add('Phone', profile.phone);
+  add('Date of Birth', profile.dob);
+  add('Address', profile.address);
+  add('LinkedIn', profile.linkedin);
+  add('GitHub', profile.github);
+  add('Portfolio', profile.portfolio);
+  add('Current Role', profile.currentRole);
+  add('Years of Experience', profile.yearsOfExperience);
+  add('Education', profile.education);
+  add('Certifications', profile.certifications);
+  add('Skills', profile.skills);
+  add('Achievements', profile.achievements);
+  add('Other Details', profile.otherDetails);
 
 
   const fieldLines: string[] = [];
-  if (fieldContext.label)       fieldLines.push(`Label: ${fieldContext.label}`);
+  if (fieldContext.label) fieldLines.push(`Label: ${fieldContext.label}`);
   if (fieldContext.placeholder) fieldLines.push(`Placeholder: ${fieldContext.placeholder}`);
-  if (fieldContext.name)        fieldLines.push(`Name attr: ${fieldContext.name}`);
-  if (fieldContext.id)          fieldLines.push(`ID attr: ${fieldContext.id}`);
-  if (fieldContext.type)        fieldLines.push(`Input type: ${fieldContext.type}`);
+  if (fieldContext.name) fieldLines.push(`Name attr: ${fieldContext.name}`);
+  if (fieldContext.id) fieldLines.push(`ID attr: ${fieldContext.id}`);
+  if (fieldContext.type) fieldLines.push(`Input type: ${fieldContext.type}`);
 
   const instructionSection = options?.userInstruction
     ? `\n## CRITICAL: USER DIRECTIVE / INSTRUCTION\n"${options.userInstruction}"\n(You MUST prioritize this instruction. If it asks for specific content like a "hackathon", ensure you bridge it naturally into the job context without stopping abruptly.)\n`
@@ -124,7 +124,7 @@ Write the complete, final value for this field:`;
 
   try {
     const response = await getClient(options?.apiKey).models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.5-flash-lite',
       contents: prompt,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
