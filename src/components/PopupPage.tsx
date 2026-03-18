@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { runAutofill } from '../services/autofillController';
 import { useProfile } from '../store';
 
 const REQUIRED_FIELDS = [
@@ -11,6 +12,8 @@ const REQUIRED_FIELDS = [
 
 export function PopupPage({ onOptionsClick }: { onOptionsClick?: () => void }) {
   const { profile, isLoading } = useProfile();
+  const [isAutofilling, setIsAutofilling] = useState(false);
+  const [autofillStatus, setAutofillStatus] = useState<string>('');
 
   const completion = useMemo(() => {
     const done = REQUIRED_FIELDS.filter(({ key }) => profile[key] && profile[key].trim().length > 0).length;
@@ -24,6 +27,55 @@ export function PopupPage({ onOptionsClick }: { onOptionsClick?: () => void }) {
   }, [profile]);
 
   const canAutofillWell = completion.done >= 3;
+
+  async function handleAutofillClick() {
+    if (isAutofilling) return;
+    setIsAutofilling(true);
+    setAutofillStatus('');
+
+    try {
+      const hasTabsApi = typeof chrome !== 'undefined' && !!chrome.tabs?.query && !!chrome.tabs?.sendMessage;
+
+      if (!hasTabsApi) {
+        console.log('[Trigger] Localhost mode detected, running autofill directly');
+        await runAutofill(profile);
+        console.log('[Trigger] Autofill completed (localhost)');
+        setAutofillStatus('Autofill completed.');
+        return;
+      }
+
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const activeTab = tabs[0];
+      const tabId = activeTab?.id;
+
+      if (!tabId) {
+        const message = 'No active tab found.';
+        console.error('[Trigger] ' + message);
+        setAutofillStatus(message);
+        return;
+      }
+
+      console.log('[Trigger] Sending RUN_AUTOFILL to tab:', tabId);
+
+      const response = await chrome.tabs.sendMessage(tabId, { type: 'RUN_AUTOFILL' as const }) as { success?: boolean; error?: string } | undefined;
+
+      if (!response?.success) {
+        const message = response?.error ?? 'Content script not available on this page.';
+        console.error('[Trigger] Autofill error:', message);
+        setAutofillStatus(message);
+        return;
+      }
+
+      console.log('[Trigger] Autofill completed');
+      setAutofillStatus('Autofill completed.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Messaging failed.';
+      console.error('[Trigger] Messaging failure:', message);
+      setAutofillStatus(message);
+    } finally {
+      setIsAutofilling(false);
+    }
+  }
 
   return (
     <div className="shell-popup">
@@ -122,6 +174,10 @@ export function PopupPage({ onOptionsClick }: { onOptionsClick?: () => void }) {
         </div>
 
         <div className="stagger-4" data-stagger>
+          <button className="btn-primary tappable" onClick={handleAutofillClick} disabled={isAutofilling || isLoading}>
+            {isAutofilling ? 'Autofilling…' : 'Autofill Form'}
+          </button>
+          {autofillStatus ? <div className="prog-sub" role="status">{autofillStatus}</div> : null}
           <button className="btn-primary tappable" onClick={onOptionsClick}>
             {canAutofillWell ? 'Edit Profile' : 'Complete Profile'}
           </button>

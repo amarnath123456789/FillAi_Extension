@@ -1,4 +1,5 @@
 import { getHeuristicFill } from '../services/heuristics';
+import { runAutofill } from '../services/autofillController';
 import { UserProfile, defaultProfile } from '../types';
 import { classifyField } from '../utils/classifier';
 
@@ -10,6 +11,15 @@ interface GenerateRequest {
   userInstruction?: string;
 }
 interface GenerateResponse { success: boolean; text?: string; error?: string; }
+
+interface RunAutofillRequest {
+  type: 'RUN_AUTOFILL';
+}
+
+interface RunAutofillResponse {
+  success: boolean;
+  error?: string;
+}
 
 // ── Styles injected into shadow root (fully isolated from the page) ──────────
 const SHADOW_CSS = `
@@ -81,6 +91,9 @@ let statusTimer: ReturnType<typeof setTimeout> | null = null;
 let blurTimer: ReturnType<typeof setTimeout> | null = null;
 let fieldInputListener: (() => void) | null = null;
 let isGenerating = false;
+let pageAutofillHost: HTMLDivElement | null = null;
+let pageAutofillBtn: HTMLButtonElement | null = null;
+let isPageAutofilling = false;
 
 // ── Field eligibility ────────────────────────────────────────────────────────
 function isEligible(el: EventTarget | null): el is HTMLInputElement | HTMLTextAreaElement {
@@ -229,6 +242,106 @@ function detachField() {
   btnHost = null; btnEl = null; activeField = null; isGenerating = false;
 }
 
+function setPageAutofillBtnState(state: 'idle' | 'running') {
+  if (!pageAutofillBtn) return;
+  if (state === 'running') {
+    pageAutofillBtn.disabled = true;
+    pageAutofillBtn.textContent = 'Autofilling…';
+    pageAutofillBtn.style.opacity = '0.7';
+    pageAutofillBtn.style.cursor = 'not-allowed';
+    return;
+  }
+
+  pageAutofillBtn.disabled = false;
+  pageAutofillBtn.textContent = 'Autofill';
+  pageAutofillBtn.style.opacity = '1';
+  pageAutofillBtn.style.cursor = 'pointer';
+}
+
+async function runPageAutofill() {
+  if (isPageAutofilling) return;
+  isPageAutofilling = true;
+  setPageAutofillBtnState('running');
+
+  try {
+    console.log('[Trigger] Running autofill...');
+    const profile = await getProfile();
+    await runAutofill(profile);
+    console.log('[Trigger] Completed');
+    showToast('✓ Autofill completed', 'success');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Autofill failed';
+    console.error('[Trigger] Autofill failed:', message);
+    showToast(message, 'error');
+  } finally {
+    isPageAutofilling = false;
+    setPageAutofillBtnState('idle');
+  }
+}
+
+function mountPageAutofillTrigger() {
+  if (window.top !== window.self) return;
+  if (pageAutofillHost) return;
+
+  pageAutofillHost = document.createElement('div');
+  Object.assign(pageAutofillHost.style, {
+    position: 'fixed',
+    bottom: '20px',
+    right: '20px',
+    zIndex: '2147483646',
+  });
+
+  pageAutofillBtn = document.createElement('button');
+  pageAutofillBtn.type = 'button';
+  pageAutofillBtn.textContent = 'Autofill';
+  Object.assign(pageAutofillBtn.style, {
+    borderRadius: '999px',
+    border: '1px solid #a8d020',
+    background: '#c8f135',
+    color: '#0e0e0e',
+    fontFamily: "'Syne', 'Inter', system-ui, -apple-system, sans-serif",
+    fontSize: '12px',
+    fontWeight: '800',
+    letterSpacing: '0.01em',
+    padding: '8px 14px',
+    boxShadow: '0 6px 20px rgba(200,241,53,0.35)',
+    cursor: 'pointer',
+    transform: 'translateY(0) scale(1)',
+    transition: 'transform 140ms ease, box-shadow 140ms ease, filter 140ms ease, opacity 140ms ease',
+  });
+
+  pageAutofillBtn.addEventListener('mouseenter', () => {
+    if (!pageAutofillBtn || pageAutofillBtn.disabled) return;
+    pageAutofillBtn.style.transform = 'translateY(-1px) scale(1.01)';
+    pageAutofillBtn.style.boxShadow = '0 9px 24px rgba(200,241,53,0.42)';
+    pageAutofillBtn.style.filter = 'brightness(1.03)';
+  });
+
+  pageAutofillBtn.addEventListener('mouseleave', () => {
+    if (!pageAutofillBtn) return;
+    pageAutofillBtn.style.transform = 'translateY(0) scale(1)';
+    pageAutofillBtn.style.boxShadow = '0 6px 20px rgba(200,241,53,0.35)';
+    pageAutofillBtn.style.filter = 'none';
+  });
+
+  pageAutofillBtn.addEventListener('mousedown', () => {
+    if (!pageAutofillBtn || pageAutofillBtn.disabled) return;
+    pageAutofillBtn.style.transform = 'translateY(0) scale(0.97)';
+  });
+
+  pageAutofillBtn.addEventListener('mouseup', () => {
+    if (!pageAutofillBtn || pageAutofillBtn.disabled) return;
+    pageAutofillBtn.style.transform = 'translateY(-1px) scale(1.01)';
+  });
+
+  pageAutofillBtn.addEventListener('click', () => {
+    void runPageAutofill();
+  });
+
+  pageAutofillHost.appendChild(pageAutofillBtn);
+  document.body.appendChild(pageAutofillHost);
+}
+
 // ── Fill click handler ────────────────────────────────────────────────────────
 async function handleClick(e: MouseEvent) {
   e.preventDefault(); e.stopPropagation();
@@ -247,7 +360,7 @@ async function handleClick(e: MouseEvent) {
     let mode: 'profile' | 'instruction' | 'ai' = 'ai';
 
     const classifierResult = classifyField(ctx);
-    const shouldTryHeuristics = classifierResult.type !== 'essay' && classifierResult.type !== 'unknown';
+    const shouldTryHeuristics = classifierResult.type !== 'essay';
 
     if (!userInstruction && shouldTryHeuristics) {
       result = getHeuristicFill(profile, ctx);
@@ -311,3 +424,27 @@ document.addEventListener('focusout', (e: FocusEvent) => {
 
 window.addEventListener('scroll', () => { if (activeField && btnHost) positionBtn(activeField); }, true);
 window.addEventListener('resize', () => { if (activeField && btnHost) positionBtn(activeField); });
+
+mountPageAutofillTrigger();
+
+chrome.runtime.onMessage.addListener((message: RunAutofillRequest, _sender, sendResponse: (response: RunAutofillResponse) => void) => {
+  if (!message || message.type !== 'RUN_AUTOFILL') return;
+
+  console.log('[Trigger] Message received');
+
+  (async () => {
+    try {
+      console.log('[Trigger] Running autofill...');
+      const profile = await getProfile();
+      await runAutofill(profile);
+      console.log('[Trigger] Completed');
+      sendResponse({ success: true });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Autofill failed';
+      console.error('[Trigger] Autofill failed:', errorMessage);
+      sendResponse({ success: false, error: errorMessage });
+    }
+  })();
+
+  return true;
+});

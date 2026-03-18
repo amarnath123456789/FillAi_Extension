@@ -179,19 +179,23 @@ function heuristicConfidence(type: FieldType): number {
     case 'full_name':
     case 'first_name':
     case 'last_name':
+    case 'dob':
+    case 'linkedin':
+    case 'github':
+    case 'portfolio':
+    case 'education':
+    case 'job_title':
+    case 'experience_years':
+    case 'skills':
       return 0.9;
 
     case 'address':
     case 'city':
-    case 'linkedin':
-    case 'github':
-    case 'portfolio':
-    case 'dob':
       return 0.8;
 
     default:
-      // job_title, experience_years, education, skills, salary, unknown, …
-      return 0.75;
+      // salary, unknown, …
+      return 0.8;
   }
 }
 
@@ -309,10 +313,11 @@ export async function processField(
   }
 
   /**
-   * CASE 1 – High-confidence heuristic fill for a non-essay field.
-   * Use when classifier confidence > 0.8 and heuristic returned a value.
+   * CASE 1 – Heuristic fill for a non-essay field.
+   * If heuristics can confidently map profile data to this field, prefer
+   * that deterministic path over LLM generation.
    */
-  if (heuristicValue && type !== 'essay' && classConfidence > 0.8) {
+  if (heuristicValue && type !== 'essay') {
     const conf = heuristicConfidence(type);
     return buildResult(heuristicValue, 'heuristic', conf, type, classification, heuristicTried, false, includeDebug);
   }
@@ -324,7 +329,7 @@ export async function processField(
   if (type === 'essay') {
     return await callLlm(
       profile, context, type, classification,
-      heuristicTried, options, includeDebug
+      heuristicTried, options, includeDebug, heuristicValue
     );
   }
 
@@ -338,7 +343,7 @@ export async function processField(
   if (type !== 'unknown' || classConfidence >= 0.5) {
     return await callLlm(
       profile, context, type, classification,
-      heuristicTried, options, includeDebug
+      heuristicTried, options, includeDebug, heuristicValue
     );
   }
 

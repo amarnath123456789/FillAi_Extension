@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { generateFieldResponse } from '../services/llm';
 import { getHeuristicFill } from '../services/heuristics';
+import { runAutofill } from '../services/autofillController';
 import { useProfile } from '../store';
 import { classifyField, ClassifierResult } from '../utils/classifier';
 
@@ -23,6 +24,7 @@ export function TestPage() {
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [hasInstruction, setHasInstruction] = useState(false);
   const [classifierResult, setClassifierResult] = useState<ClassifierResult | null>(null);
+  const [isPageAutofilling, setIsPageAutofilling] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const isGeneratingRef = useRef(fillStatus === 'generating');
@@ -231,6 +233,19 @@ export function TestPage() {
     }
   };
 
+  const handlePageAutofill = async () => {
+    if (isPageAutofilling) return;
+    setIsPageAutofilling(true);
+    try {
+      await runAutofill(profile);
+      showToast('Autofill completed', 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Autofill failed', 'error');
+    } finally {
+      setIsPageAutofilling(false);
+    }
+  };
+
   const getButtonContent = () => {
     switch (fillStatus) {
       case 'generating':
@@ -286,6 +301,52 @@ export function TestPage() {
 
   return (
     <div ref={containerRef} className="custom-scrollbar" style={{ position: 'relative', height: '100%', overflowY: 'auto', padding: '64px', background: 'var(--black)' }}>
+      <button
+        type="button"
+        onClick={handlePageAutofill}
+        disabled={isPageAutofilling}
+        onMouseEnter={(e) => {
+          if (isPageAutofilling) return;
+          e.currentTarget.style.transform = 'translateY(-1px) scale(1.01)';
+          e.currentTarget.style.boxShadow = '0 9px 24px rgba(200,241,53,0.42)';
+          e.currentTarget.style.filter = 'brightness(1.03)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'translateY(0) scale(1)';
+          e.currentTarget.style.boxShadow = '0 6px 20px rgba(200,241,53,0.35)';
+          e.currentTarget.style.filter = 'none';
+        }}
+        onMouseDown={(e) => {
+          if (isPageAutofilling) return;
+          e.currentTarget.style.transform = 'translateY(0) scale(0.97)';
+        }}
+        onMouseUp={(e) => {
+          if (isPageAutofilling) return;
+          e.currentTarget.style.transform = 'translateY(-1px) scale(1.01)';
+        }}
+        style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 70,
+          borderRadius: '999px',
+          border: '1px solid var(--lime-dk, #a8d020)',
+          background: 'var(--lime, #c8f135)',
+          color: 'var(--black, #0e0e0e)',
+          fontFamily: 'var(--font-display, Syne), var(--font-body, Inter), system-ui, -apple-system, sans-serif',
+          fontSize: '12px',
+          fontWeight: 800,
+          padding: '8px 14px',
+          boxShadow: '0 6px 20px rgba(200,241,53,0.35)',
+          cursor: isPageAutofilling ? 'not-allowed' : 'pointer',
+          opacity: isPageAutofilling ? 0.7 : 1,
+          transform: 'translateY(0) scale(1)',
+          transition: 'transform 140ms ease, box-shadow 140ms ease, filter 140ms ease, opacity 140ms ease',
+        }}
+      >
+        {isPageAutofilling ? 'Autofilling…' : 'Autofill'}
+      </button>
+
       {/* Toast Notification */}
       {toastMessage && (
         <div style={{
