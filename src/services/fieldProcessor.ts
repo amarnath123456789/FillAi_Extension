@@ -19,6 +19,12 @@ import { getHeuristicFill } from './heuristics';
 import { generateFieldResponse } from './llm';
 import { UserProfile } from '../types';
 
+interface BackgroundGenerateResponse {
+  success: boolean;
+  text?: string;
+  error?: string;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Public output type
 // ─────────────────────────────────────────────────────────────────────────────
@@ -228,6 +234,67 @@ function buildResult(
   return result;
 }
 
+function canUseBackgroundLlm(): boolean {
+  return typeof chrome !== 'undefined' && !!chrome.runtime?.sendMessage;
+}
+
+function callLlmViaBackground(
+  profile: UserProfile,
+  llmContext: {
+    label: string;
+    placeholder: string;
+    name: string;
+    id: string;
+    type?: string;
+  },
+  userInstruction?: string
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!canUseBackgroundLlm()) {
+      reject(new Error('Background messaging unavailable'));
+      return;
+    }
+
+    try {
+      chrome.runtime.sendMessage(
+        {
+          type: 'FILLAI_GENERATE',
+          profile,
+          fieldContext: {
+            label: llmContext.label,
+            placeholder: llmContext.placeholder,
+            name: llmContext.name,
+            id: llmContext.id,
+            type: llmContext.type ?? '',
+          },
+          userInstruction,
+        },
+        (resp?: BackgroundGenerateResponse) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message || 'Extension messaging failed'));
+            return;
+          }
+
+          if (!resp?.success) {
+            reject(new Error(resp?.error || 'Background AI generation failed'));
+            return;
+          }
+
+          const text = (resp.text || '').trim();
+          if (!text) {
+            reject(new Error('Background AI returned empty response'));
+            return;
+          }
+
+          resolve(text);
+        }
+      );
+    } catch (error) {
+      reject(error instanceof Error ? error : new Error(String(error)));
+    }
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main export – processField
 // ─────────────────────────────────────────────────────────────────────────────
@@ -382,10 +449,12 @@ async function callLlm(
   };
 
   try {
-    const value = await generateFieldResponse(profile, llmContext, {
-      apiKey: options.apiKey,
-      userInstruction: options.userInstruction,
-    });
+    const value = canUseBackgroundLlm()
+      ? await callLlmViaBackground(profile, llmContext, options.userInstruction)
+      : await generateFieldResponse(profile, llmContext, {
+          apiKey: options.apiKey,
+          userInstruction: options.userInstruction,
+        });
 
     const conf = llmConfidence(type);
     return buildResult(value, 'llm', conf, type, classification, heuristicTried, true, includeDebug);

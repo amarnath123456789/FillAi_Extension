@@ -7,10 +7,9 @@ let _devAi: GoogleGenAI | null = null;
 function getClient(explicitKey?: string): GoogleGenAI {
   // Extension mode: always use the explicitly provided key
   if (explicitKey) return new GoogleGenAI({ apiKey: explicitKey });
-  // Dev mode: fall back to the .env variable
-
-  const key = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-  if (!key) throw new Error('GEMINI_API_KEY/VITE_GEMINI_API_KEY is not set. Add VITE_GEMINI_API_KEY to your .env file and restart the dev server.');
+  // Dev mode: fall back to the env value injected by Vite/esbuild config
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error('GEMINI_API_KEY is not set. Add GEMINI_API_KEY to your .env file and restart the dev server.');
   if (!_devAi) _devAi = new GoogleGenAI({ apiKey: key });
   return _devAi;
 }
