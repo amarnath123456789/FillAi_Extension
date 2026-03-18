@@ -18,12 +18,22 @@ import { classifyField, FieldContext, FieldType, ClassifierResult } from '../uti
 import { getHeuristicFill } from './heuristics';
 import { generateFieldResponse } from './llm';
 import { UserProfile } from '../types';
+import { getCache, getContextKey, getSimpleKey, setCache } from '../utils/cache';
 
 interface BackgroundGenerateResponse {
   success: boolean;
   text?: string;
   error?: string;
 }
+
+const SIMPLE_CACHE_TYPES: ReadonlySet<FieldType> = new Set([
+  'full_name',
+  'first_name',
+  'last_name',
+  'email',
+  'phone',
+  'linkedin',
+]);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public output type
@@ -33,7 +43,7 @@ export type FillResult = {
   /** The value to write into the field, or null when skipped. */
   value: string | null;
   /** Which code path produced the value. */
-  source: 'heuristic' | 'llm' | 'none';
+  source: 'heuristic' | 'llm' | 'cache' | 'none';
   /** 0–1 confidence estimate for this fill. */
   confidence: number;
   /** Resolved field type from the classifier. */
@@ -448,6 +458,20 @@ async function callLlm(
     type: context.type,
   };
 
+  const canUseCache = classification.confidence >= 0.6;
+  let cacheKey: string | null = null;
+
+  if (canUseCache) {
+    cacheKey = SIMPLE_CACHE_TYPES.has(type)
+      ? getSimpleKey(type, profile)
+      : getContextKey(type, context.label ?? '');
+
+    const cached = await getCache(cacheKey);
+    if (cached) {
+      return buildResult(cached, 'cache', 0.95, type, classification, heuristicTried, true, includeDebug);
+    }
+  }
+
   try {
     const value = canUseBackgroundLlm()
       ? await callLlmViaBackground(profile, llmContext, options.userInstruction)
@@ -455,6 +479,10 @@ async function callLlm(
           apiKey: options.apiKey,
           userInstruction: options.userInstruction,
         });
+
+    if (canUseCache && cacheKey) {
+      await setCache(cacheKey, value);
+    }
 
     const conf = llmConfidence(type);
     return buildResult(value, 'llm', conf, type, classification, heuristicTried, true, includeDebug);

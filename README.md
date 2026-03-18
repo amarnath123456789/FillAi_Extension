@@ -119,6 +119,46 @@ When enabled, detector logs include:
    - Confirm trigger appears once fields are rendered.
 4. With debug enabled, verify logs match expectations for `totalFields` and `score`.
 
+## ⚡ Smart Cache (LLM Responses)
+
+FillAI uses a lightweight cache in `chrome.storage.local` (`fillai_cache`) for successful LLM outputs only.
+
+- **Module:** `src/utils/cache.ts`
+- **Integration:** `src/services/fieldProcessor.ts` (LLM path only)
+
+### Cache key strategy
+
+- **Simple fields** (`full_name`, `first_name`, `last_name`, `email`, `phone`, `linkedin`):
+   - key uses `fieldType + profile.fullName`
+- **Context fields** (essay/complex and everything else):
+   - key uses `fieldType + hostname + normalizedTitle + label`
+   - title normalization lowercases, removes `- | –` noise, collapses spaces, and truncates to 80 chars
+
+### Expiry and limits
+
+- TTL: `24h` (`24 * 60 * 60 * 1000`)
+- Expired entries are deleted on read
+- Max size: `100` entries
+- Oldest entries are evicted when limit is exceeded
+
+### Cache guardrails
+
+Cache writes happen only when all are true:
+
+- source is LLM
+- value is non-empty
+- value length is `>= 20`
+- classifier confidence is `>= 0.6`
+
+Heuristic outputs are never cached.
+
+### Cache debug signals
+
+On read:
+
+- `console.log('[Cache] HIT:', key)`
+- `console.log('[Cache] MISS:', key)`
+
 ## 💻 Technologies Used
 
 - **Framework:** React 19

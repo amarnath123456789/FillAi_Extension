@@ -8,7 +8,12 @@ interface GenerateRequest {
   fieldContext: { label: string; placeholder: string; name: string; id: string; type: string };
   userInstruction?: string;
 }
-interface GenerateResponse { success: boolean; text?: string; error?: string; }
+interface GenerateResponse {
+  success: boolean;
+  text?: string;
+  error?: string;
+  source?: 'llm' | 'heuristic';
+}
 
 chrome.runtime.onMessage.addListener(
   (msg: GenerateRequest, _sender: chrome.runtime.MessageSender, sendResponse: (r: GenerateResponse) => void) => {
@@ -53,12 +58,12 @@ async function handleGenerate(msg: GenerateRequest): Promise<GenerateResponse> {
         userInstruction: msg.userInstruction,
         apiKey: apiKey.trim(),
       });
-      return { success: true, text };
+      return { success: true, text, source: 'llm' };
     } catch (llmErr) {
       const fallback = getHeuristicFill(msg.profile, msg.fieldContext);
       if (fallback?.trim()) {
         console.warn('[FillAI] LLM failed, using heuristic fallback.', llmErr);
-        return { success: true, text: fallback };
+        return { success: true, text: fallback, source: 'heuristic' };
       }
 
       const errMsg = llmErr instanceof Error ? llmErr.message : String(llmErr);

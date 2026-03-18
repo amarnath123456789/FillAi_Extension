@@ -1,8 +1,9 @@
 import { getHeuristicFill } from '../services/heuristics';
 import { runAutofill } from '../services/autofillController';
 import { UserProfile, defaultProfile } from '../types';
-import { classifyField } from '../utils/classifier';
+import { classifyField, FieldType } from '../utils/classifier';
 import { isFormPage } from '../utils/formDetector';
+import { getCache, getContextKey, getSimpleKey, setCache } from '../utils/cache';
 
 // ── Message types ────────────────────────────────────────────────────────────
 interface GenerateRequest {
@@ -11,7 +12,12 @@ interface GenerateRequest {
   fieldContext: { label: string; placeholder: string; name: string; id: string; type: string };
   userInstruction?: string;
 }
-interface GenerateResponse { success: boolean; text?: string; error?: string; }
+interface GenerateResponse {
+  success: boolean;
+  text?: string;
+  error?: string;
+  source?: 'llm' | 'heuristic';
+}
 
 interface RunAutofillRequest {
   type: 'RUN_AUTOFILL';
@@ -97,6 +103,23 @@ let pageAutofillBtn: HTMLButtonElement | null = null;
 let isPageAutofilling = false;
 let formDetectionObserver: MutationObserver | null = null;
 let formDetectionDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+const SIMPLE_CACHE_TYPES: ReadonlySet<FieldType> = new Set([
+  'full_name',
+  'first_name',
+  'last_name',
+  'email',
+  'phone',
+  'linkedin',
+]);
+
+type FillMode = 'profile' | 'instruction' | 'ai' | 'cache';
+
+function getCacheKeyForType(type: FieldType, profile: UserProfile, label: string): string {
+  return SIMPLE_CACHE_TYPES.has(type)
+    ? getSimpleKey(type, profile)
+    : getContextKey(type, label);
+}
 
 // ── Field eligibility ────────────────────────────────────────────────────────
 function isEligible(el: EventTarget | null): el is HTMLInputElement | HTMLTextAreaElement {
@@ -409,14 +432,27 @@ async function handleClick(e: MouseEvent) {
 
   try {
     let result: string | null = null;
-    let mode: 'profile' | 'instruction' | 'ai' = 'ai';
+    let mode: FillMode = 'ai';
+    let cacheKey: string | null = null;
 
     const classifierResult = classifyField(ctx);
     const shouldTryHeuristics = classifierResult.type !== 'essay';
+    const canUseCache = classifierResult.confidence >= 0.6;
 
     if (!userInstruction && shouldTryHeuristics) {
       result = getHeuristicFill(profile, ctx);
       if (result) mode = 'profile';
+    }
+
+    if (!result) {
+      if (canUseCache) {
+        cacheKey = getCacheKeyForType(classifierResult.type, profile, ctx.label);
+        const cached = await getCache(cacheKey);
+        if (cached) {
+          result = cached;
+          mode = 'cache';
+        }
+      }
     }
 
     if (!result) {
@@ -428,6 +464,19 @@ async function handleClick(e: MouseEvent) {
       });
       if (!resp.success) throw new Error(resp.error ?? 'Generation failed');
       result = resp.text ?? '';
+
+      if (resp.source === 'heuristic') {
+        mode = 'profile';
+      }
+
+      if (resp.source === 'llm') {
+        if (!cacheKey && canUseCache) {
+          cacheKey = getCacheKeyForType(classifierResult.type, profile, ctx.label);
+        }
+        if (cacheKey && result) {
+          await setCache(cacheKey, result);
+        }
+      }
     }
 
     if (!result) throw new Error('No response generated.');
@@ -435,6 +484,7 @@ async function handleClick(e: MouseEvent) {
     setStatus('success');
     showToast(
       mode === 'profile'     ? '✓ Filled from profile'
+        : mode === 'cache'       ? '✓ Filled from cache'
         : mode === 'instruction' ? '✓ Filled with your instruction'
         : '✓ Filled with AI',
       'success'
