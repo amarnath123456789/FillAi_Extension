@@ -1,6 +1,7 @@
 // @ts-check
 import { build } from 'esbuild';
 import { copyFileSync } from 'fs';
+import { mkdirSync, readdirSync } from 'fs';
 import { execSync } from 'child_process';
 
 const OUT = 'dist-ext';
@@ -47,6 +48,14 @@ console.log('  ✓ background.js');
 console.log('\n[4/4] Copying manifest.json…');
 copyFileSync('manifest.json', `${OUT}/manifest.json`);
 console.log('  ✓ manifest.json');
+
+// ── 5. icons ─────────────────────────────────────────────────────────────────
+console.log('\n[5/5] Copying icon assets…');
+mkdirSync(`${OUT}/icons`, { recursive: true });
+for (const name of readdirSync('icons')) {
+  copyFileSync(`icons/${name}`, `${OUT}/icons/${name}`);
+}
+console.log('  ✓ icons');
 
 console.log('\n✅  Extension built → dist-ext/');
 console.log('    Load in Chrome:  chrome://extensions  →  Developer mode  →  Load unpacked  →  select dist-ext/\n');
