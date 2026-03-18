@@ -2,6 +2,7 @@ import { getHeuristicFill } from '../services/heuristics';
 import { runAutofill } from '../services/autofillController';
 import { UserProfile, defaultProfile } from '../types';
 import { classifyField } from '../utils/classifier';
+import { isFormPage } from '../utils/formDetector';
 
 // ── Message types ────────────────────────────────────────────────────────────
 interface GenerateRequest {
@@ -94,6 +95,8 @@ let isGenerating = false;
 let pageAutofillHost: HTMLDivElement | null = null;
 let pageAutofillBtn: HTMLButtonElement | null = null;
 let isPageAutofilling = false;
+let formDetectionObserver: MutationObserver | null = null;
+let formDetectionDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 // ── Field eligibility ────────────────────────────────────────────────────────
 function isEligible(el: EventTarget | null): el is HTMLInputElement | HTMLTextAreaElement {
@@ -260,6 +263,11 @@ function setPageAutofillBtnState(state: 'idle' | 'running') {
 
 async function runPageAutofill() {
   if (isPageAutofilling) return;
+  if (!isFormPage()) {
+    showToast('No meaningful form detected on this page', 'error');
+    return;
+  }
+
   isPageAutofilling = true;
   setPageAutofillBtnState('running');
 
@@ -282,6 +290,7 @@ async function runPageAutofill() {
 function mountPageAutofillTrigger() {
   if (window.top !== window.self) return;
   if (pageAutofillHost) return;
+  if (!isFormPage()) return;
 
   pageAutofillHost = document.createElement('div');
   Object.assign(pageAutofillHost.style, {
@@ -340,6 +349,49 @@ function mountPageAutofillTrigger() {
 
   pageAutofillHost.appendChild(pageAutofillBtn);
   document.body.appendChild(pageAutofillHost);
+
+  if (formDetectionObserver) {
+    formDetectionObserver.disconnect();
+    formDetectionObserver = null;
+  }
+  if (formDetectionDebounceTimer) {
+    clearTimeout(formDetectionDebounceTimer);
+    formDetectionDebounceTimer = null;
+  }
+}
+
+function queueTriggerMountCheck(delayMs = 0) {
+  setTimeout(() => {
+    if (pageAutofillHost) return;
+    mountPageAutofillTrigger();
+  }, delayMs);
+}
+
+function startDynamicFormDetection() {
+  if (window.top !== window.self) return;
+  if (pageAutofillHost) return;
+
+  queueTriggerMountCheck(300);
+  queueTriggerMountCheck(1200);
+  queueTriggerMountCheck(3000);
+
+  if (formDetectionObserver || !document.body) return;
+
+  formDetectionObserver = new MutationObserver(() => {
+    if (pageAutofillHost) return;
+    if (formDetectionDebounceTimer) clearTimeout(formDetectionDebounceTimer);
+    formDetectionDebounceTimer = setTimeout(() => {
+      formDetectionDebounceTimer = null;
+      mountPageAutofillTrigger();
+    }, 250);
+  });
+
+  formDetectionObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['type', 'disabled', 'style', 'class'],
+  });
 }
 
 // ── Fill click handler ────────────────────────────────────────────────────────
@@ -426,9 +478,15 @@ window.addEventListener('scroll', () => { if (activeField && btnHost) positionBt
 window.addEventListener('resize', () => { if (activeField && btnHost) positionBtn(activeField); });
 
 mountPageAutofillTrigger();
+startDynamicFormDetection();
 
 chrome.runtime.onMessage.addListener((message: RunAutofillRequest, _sender, sendResponse: (response: RunAutofillResponse) => void) => {
   if (!message || message.type !== 'RUN_AUTOFILL') return;
+
+  if (!isFormPage()) {
+    sendResponse({ success: false, error: 'No meaningful form detected on this page.' });
+    return;
+  }
 
   console.log('[Trigger] Message received');
 

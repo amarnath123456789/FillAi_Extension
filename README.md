@@ -52,6 +52,73 @@ FillAI is a modern browser extension built with React, TypeScript, and Vite. It 
    - Click **Load unpacked**.
    - Select the `dist-ext` folder generated in the previous step.
 
+## 🧭 Form Detection (Smart Autofill Guard)
+
+The content script now checks whether the current page is a meaningful form page before showing/running page-level autofill.
+
+- **Detector module:** `src/utils/formDetector.ts`
+- **Entry point integration:** `src/content/index.ts`
+
+### Heuristic signals
+
+- Counts visible, enabled fields from:
+  - `input[type="text"]`
+  - `input[type="email"]`
+  - `input[type="tel"]`
+  - `input[type="number"]`
+  - `textarea`
+  - `select`
+- Hidden and disabled fields are ignored.
+- Page text scan checks first ~2000 chars for form-intent keywords.
+- Scoring:
+  - `+2` if fields `>= 3`
+  - `+2` if `<form>` exists and fields `>= 2`
+  - `+1` if keyword match and fields `>= 2`
+  - returns `true` when score `>= 3`
+- Hard exclusion: if total eligible fields `<= 1`, returns `false`.
+
+### Dynamic form handling
+
+- Trigger mounting is re-checked shortly after load and on DOM mutations.
+- This supports delayed/SPA-rendered forms without polling loops.
+
+### Debug logging (optional)
+
+Enable in page DevTools console:
+
+```js
+localStorage.setItem('fillai:formDetectorDebug', '1')
+```
+
+Disable:
+
+```js
+localStorage.removeItem('fillai:formDetectorDebug')
+```
+
+When enabled, detector logs include:
+
+- `totalFields`
+- `hasForm`
+- `keywordMatch`
+- `score`
+
+### Manual test checklist
+
+1. Build and load extension:
+   - `npm run build:ext`
+   - Reload unpacked extension from `dist-ext`.
+2. Open each page type and verify behavior:
+   - Login/Register page → Autofill trigger appears.
+   - Job application/Contact page → Autofill trigger appears.
+   - Search homepage (single search box) → trigger does **not** appear.
+   - Blog/article page (no meaningful fields) → trigger does **not** appear.
+   - Chat UI with single message box → trigger does **not** appear.
+3. For delayed forms (SPA/modal):
+   - Navigate/open form after initial page load.
+   - Confirm trigger appears once fields are rendered.
+4. With debug enabled, verify logs match expectations for `totalFields` and `score`.
+
 ## 💻 Technologies Used
 
 - **Framework:** React 19
