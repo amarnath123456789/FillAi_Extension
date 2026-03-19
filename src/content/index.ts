@@ -32,47 +32,105 @@ interface RunAutofillResponse {
 const SHADOW_CSS = `
 :host { all: initial; }
 .btn {
+  --energy: 0;
+  --fill-progress: 0%;
+  --energy-blur-1: 1.6px;
+  --energy-blur-2: 3.2px;
+  --energy-alpha-1: 0.16;
+  --energy-alpha-2: 0.1;
+  --energy-scale: 1;
   width: 28px; height: 28px; border-radius: 7px;
   border: 1px solid rgba(200,241,53,0.5);
   background: #c8f135;
   color: #0e0e0e;
-  box-shadow: 0 0 10px rgba(200,241,53,0.3);
+  box-shadow: none;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  padding: 0; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0; transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
   overflow: hidden;
+  position: relative;
 }
 .btn:hover:not(:disabled) { transform: scale(1.1); }
 .btn:active:not(:disabled) { transform: scale(0.95); }
 .btn.instruction {
-  background: #ff9800; border-color: #e68a00;
-  box-shadow: 0 0 12px rgba(255,152,0,0.4);
+  background: #c8f135;
+  border-color: rgba(200,241,53,0.7);
 }
 .btn.generating { 
-  background: rgba(200,241,53,0.05); 
+  background: rgba(200,241,53,0.08); 
   border-color: rgba(200,241,53,0.4); 
-  color: #c8f135; 
+  color: #0e0e0e;
   cursor: not-allowed; 
 }
 .btn.success { 
   background: #c8f135; 
   border-color: #a8d020; 
-  box-shadow: 0 0 15px rgba(200,241,53,0.5); 
+  box-shadow: 0 0 10px rgba(200,241,53,0.28); 
   color: #0e0e0e; 
 }
 .btn.error { 
   background: #ef4444;  
   border-color: #dc2626;  
-  box-shadow: 0 0 12px rgba(239,68,68,0.4); 
+  box-shadow: 0 0 10px rgba(239,68,68,0.35); 
   color: #fff; 
 }
 
-/* Spinner & Success Animation */
-.spinner {
-  width: 16px; height: 16px;
-  border: 2px solid rgba(200,241,53,0.2);
-  border-top-color: #c8f135;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+.liquid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(214, 246, 85, 0.98) 0%, rgba(200,241,53,0.98) 100%);
+  transform: translateY(calc(100% - var(--fill-progress)));
+  opacity: 0;
+  transition: transform 220ms linear, opacity 180ms ease;
+  z-index: 0;
+}
+
+.btn.generating .liquid,
+.btn.success .liquid {
+  opacity: 1;
+}
+
+.btn.generating .liquid {
+  transition: none;
+}
+
+.btn.resetting .liquid {
+  transition: transform 220ms ease-out, opacity 180ms ease;
+}
+
+.icon-slot {
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+  color: currentColor;
+  opacity: 1;
+  transform: scale(1);
+  transition: color 180ms ease-in-out, filter 220ms ease-in-out, transform 180ms ease, opacity 180ms ease;
+  will-change: transform, filter;
+}
+
+.btn.instruction .icon-slot {
+  color: #edb313;
+  transform: scale(1);
+  filter: none;
+}
+
+.btn.generating .icon-slot {
+  animation: bolt-spin-variable 1.4s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+.icon-slot.icon-fade-out {
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.icon-slot.icon-fade-in {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .check-svg { width: 14px; height: 14px; stroke: currentColor; }
@@ -82,8 +140,28 @@ const SHADOW_CSS = `
   animation: draw-check 0.4s ease forwards;
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes bolt-spin-variable {
+  0%   { transform: rotate(0deg); }
+  20%  { transform: rotate(220deg); }
+  48%  { transform: rotate(360deg); }
+  72%  { transform: rotate(620deg); }
+  100% { transform: rotate(720deg); }
+}
+
 @keyframes draw-check { to { stroke-dashoffset: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .icon-slot,
+  .liquid {
+    transition-duration: 80ms !important;
+  }
+
+  .btn.generating .icon-slot,
+  .liquid {
+    animation: none !important;
+  }
+}
 `;
 
 const BOLT  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13.5H11L10 22L20 10H13.5L13 2Z" fill="currentColor"/></svg>`;
@@ -94,9 +172,20 @@ const ERR   = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" strok
 let activeField: HTMLInputElement | HTMLTextAreaElement | null = null;
 let btnHost: HTMLDivElement | null = null;
 let btnEl: HTMLButtonElement | null = null;
+let liquidEl: HTMLSpanElement | null = null;
+let iconSlotEl: HTMLSpanElement | null = null;
 let statusTimer: ReturnType<typeof setTimeout> | null = null;
 let blurTimer: ReturnType<typeof setTimeout> | null = null;
 let fieldInputListener: (() => void) | null = null;
+let iconSwapTimer: ReturnType<typeof setTimeout> | null = null;
+let loadingRaf: number | null = null;
+let loadingStartTs = 0;
+let loadingCanComplete = false;
+let loadingCompleteStartTs = 0;
+let loadingCompleteFrom = 0;
+let loadingCompleteResolver: (() => void) | null = null;
+let loadingCompletePromise: Promise<void> | null = null;
+let fillProgress = 0;
 let isGenerating = false;
 let pageAutofillHost: HTMLDivElement | null = null;
 let pageAutofillBtn: HTMLButtonElement | null = null;
@@ -114,6 +203,15 @@ const SIMPLE_CACHE_TYPES: ReadonlySet<FieldType> = new Set([
 ]);
 
 type FillMode = 'profile' | 'instruction' | 'ai' | 'cache';
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function countWords(text: string): number {
+  const words = text.trim().match(/\S+/g);
+  return words ? words.length : 0;
+}
 
 function getCacheKeyForType(
   type: FieldType,
@@ -233,6 +331,141 @@ function showToast(msg: string, type: 'success' | 'error') {
   setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 2700);
 }
 
+function setFillProgress(progress: number) {
+  fillProgress = clamp(progress, 0, 1);
+  if (!btnEl) return;
+  btnEl.style.setProperty('--fill-progress', `${(fillProgress * 100).toFixed(1)}%`);
+}
+
+function stopLoadingAnimation() {
+  if (loadingRaf != null) {
+    cancelAnimationFrame(loadingRaf);
+    loadingRaf = null;
+  }
+
+  if (loadingCompleteResolver) {
+    loadingCompleteResolver();
+    loadingCompleteResolver = null;
+  }
+
+  loadingCompletePromise = null;
+  loadingCanComplete = false;
+  loadingCompleteStartTs = 0;
+  loadingCompleteFrom = 0;
+}
+
+function startLoadingAnimation() {
+  stopLoadingAnimation();
+  loadingStartTs = performance.now();
+  loadingCanComplete = false;
+  loadingCompleteStartTs = 0;
+  loadingCompleteFrom = 0;
+  loadingCompletePromise = new Promise<void>((resolve) => {
+    loadingCompleteResolver = resolve;
+  });
+  setFillProgress(0);
+
+  const tick = (now: number) => {
+    if (!btnEl || !isGenerating) {
+      stopLoadingAnimation();
+      return;
+    }
+
+    if (!loadingCanComplete) {
+      const elapsed = now - loadingStartTs;
+      const inFlight = clamp(elapsed / 1200, 0, 1);
+      const target = inFlight * 0.88;
+      setFillProgress(target);
+      loadingRaf = requestAnimationFrame(tick);
+      return;
+    }
+
+    if (loadingCompleteStartTs === 0) {
+      loadingCompleteStartTs = now;
+      loadingCompleteFrom = fillProgress;
+    }
+
+    const doneElapsed = now - loadingCompleteStartTs;
+    const donePct = clamp(doneElapsed / 320, 0, 1);
+    const next = loadingCompleteFrom + (1 - loadingCompleteFrom) * donePct;
+    setFillProgress(next);
+
+    if (donePct >= 1) {
+      if (loadingCompleteResolver) {
+        loadingCompleteResolver();
+        loadingCompleteResolver = null;
+      }
+      loadingRaf = null;
+      return;
+    }
+
+    loadingRaf = requestAnimationFrame(tick);
+  };
+
+  loadingRaf = requestAnimationFrame(tick);
+}
+
+function completeLoadingAnimation(): Promise<void> {
+  if (!loadingCompletePromise) return Promise.resolve();
+  loadingCanComplete = true;
+  return loadingCompletePromise;
+}
+
+function clearIconSwapTimer() {
+  if (iconSwapTimer) {
+    clearTimeout(iconSwapTimer);
+    iconSwapTimer = null;
+  }
+}
+
+function clearStatusTimer() {
+  if (statusTimer) {
+    clearTimeout(statusTimer);
+    statusTimer = null;
+  }
+}
+
+function setIcon(svgMarkup: string, animated = false) {
+  if (!iconSlotEl) return;
+
+  clearIconSwapTimer();
+
+  if (!animated) {
+    iconSlotEl.classList.remove('icon-fade-out', 'icon-fade-in');
+    iconSlotEl.innerHTML = svgMarkup;
+    return;
+  }
+
+  iconSlotEl.classList.remove('icon-fade-in');
+  iconSlotEl.classList.add('icon-fade-out');
+
+  iconSwapTimer = setTimeout(() => {
+    if (!iconSlotEl) return;
+    iconSlotEl.innerHTML = svgMarkup;
+    iconSlotEl.classList.remove('icon-fade-out');
+    iconSlotEl.classList.add('icon-fade-in');
+    iconSwapTimer = setTimeout(() => {
+      iconSlotEl?.classList.remove('icon-fade-in');
+      iconSwapTimer = null;
+    }, 170);
+  }, 110);
+}
+
+function setEnergy(intensity: number) {
+  if (!btnEl) return;
+  btnEl.style.setProperty('--energy', clamp(intensity, 0, 0.9).toFixed(3));
+  btnEl.style.setProperty('--energy-blur-1', '0px');
+  btnEl.style.setProperty('--energy-blur-2', '0px');
+  btnEl.style.setProperty('--energy-alpha-1', '0');
+  btnEl.style.setProperty('--energy-alpha-2', '0');
+  btnEl.style.setProperty('--energy-scale', '1');
+}
+
+function resetVisualRuntimes() {
+  stopLoadingAnimation();
+  clearIconSwapTimer();
+}
+
 // ── Button lifecycle ──────────────────────────────────────────────────────────
 function mountBtn() {
   if (btnHost) btnHost.remove();
@@ -244,8 +477,18 @@ function mountBtn() {
   shadow.appendChild(style);
   btnEl = document.createElement('button');
   btnEl.className = 'btn';
+  setFillProgress(0);
+  setEnergy(0);
   btnEl.title = 'FillAI — auto-fill this field';
-  btnEl.innerHTML = BOLT;
+
+  liquidEl = document.createElement('span');
+  liquidEl.className = 'liquid';
+
+  iconSlotEl = document.createElement('span');
+  iconSlotEl.className = 'icon-slot';
+  iconSlotEl.innerHTML = BOLT;
+
+  btnEl.append(liquidEl, iconSlotEl);
   btnEl.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); });
   btnEl.addEventListener('click', handleClick);
   shadow.appendChild(btnEl);
@@ -261,29 +504,70 @@ function positionBtn(field: Element) {
 
 function setStatus(s: 'idle' | 'instruction' | 'generating' | 'success' | 'error') {
   if (!btnEl) return;
+  btnEl.classList.remove('resetting');
   btnEl.className = s !== 'idle' ? `btn ${s}` : 'btn';
   (btnEl as HTMLButtonElement).disabled = s === 'generating';
-  btnEl.innerHTML = s === 'generating' ? '<div class="spinner"></div>'
-    : s === 'success' ? CHECK
-    : s === 'error'   ? ERR
-    : BOLT;
+
+  if (s === 'generating') {
+    setIcon(BOLT);
+    startLoadingAnimation();
+  } else {
+    stopLoadingAnimation();
+  }
+
+  if (s === 'success') {
+    setFillProgress(1);
+    setIcon(CHECK, true);
+  } else if (s === 'error') {
+    setIcon(ERR, true);
+    btnEl.classList.add('resetting');
+    setFillProgress(0);
+  } else {
+    setIcon(BOLT);
+    if (s === 'idle') {
+      setEnergy(0);
+      btnEl.classList.add('resetting');
+      setFillProgress(0);
+    }
+    if (s === 'instruction') {
+      btnEl.classList.add('resetting');
+      setFillProgress(0);
+    }
+  }
+
   if (s === 'idle' || s === 'instruction') {
     btnEl.title = s === 'instruction'
       ? 'FillAI — using your text as instruction'
       : 'FillAI — auto-fill this field';
+  } else if (s === 'generating') {
+    btnEl.title = 'FillAI — generating';
+  } else if (s === 'success') {
+    btnEl.title = 'FillAI — completed';
+  } else {
+    btnEl.title = 'FillAI — failed';
   }
 }
 
 function syncInstructionState() {
   if (!activeField || isGenerating) return;
-  setStatus(activeField.value.trim().length > 0 ? 'instruction' : 'idle');
+  const words = countWords(activeField.value);
+  setEnergy(0);
+  setStatus(words > 0 ? 'instruction' : 'idle');
 }
 
 function detachField() {
+  resetVisualRuntimes();
+  clearStatusTimer();
   if (fieldInputListener && activeField) activeField.removeEventListener('input', fieldInputListener);
   fieldInputListener = null;
   btnHost?.remove();
-  btnHost = null; btnEl = null; activeField = null; isGenerating = false;
+  btnHost = null;
+  btnEl = null;
+  liquidEl = null;
+  iconSlotEl = null;
+  activeField = null;
+  isGenerating = false;
+  fillProgress = 0;
 }
 
 function setPageAutofillBtnState(state: 'idle' | 'running') {
@@ -508,6 +792,7 @@ async function handleClick(e: MouseEvent) {
     }
 
     if (!result) throw new Error('No response generated.');
+    await completeLoadingAnimation();
     fillField(field, result);
     setStatus('success');
     showToast(
@@ -534,6 +819,8 @@ document.addEventListener('focusin', (e: FocusEvent) => {
   if (e.target === activeField) { positionBtn(e.target); return; }
 
   // New field focused — clean up previous
+  resetVisualRuntimes();
+  clearStatusTimer();
   if (fieldInputListener && activeField) activeField.removeEventListener('input', fieldInputListener);
   if (btnHost) btnHost.remove();
   activeField = e.target;
