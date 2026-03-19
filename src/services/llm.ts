@@ -36,6 +36,12 @@ const MODEL_OPTIONS: FillAiModelOption[] = [
     sizeLabel: '1B',
     recommendedFor: 'Best overall quality for FillAI prompts',
   },
+  {
+    id: 'gemma-2-2b-it-q4f16_1-MLC',
+    name: 'Gemma 2 2B Instruct',
+    sizeLabel: '2B',
+    recommendedFor: 'Stronger quality for complex fields on capable devices',
+  },
 ];
 
 let _enginePromise: Promise<MLCEngineInterface> | null = null;
