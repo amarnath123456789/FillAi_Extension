@@ -210,6 +210,7 @@ export function OptionsPage() {
 
   const modelProgressPct = Math.round((modelStatus?.progress || 0) * 100);
   const isModelReady = modelStatus?.phase === 'ready';
+  const selectedModel = models.find((model) => model.id === selectedModelId);
 
   return (
     <>
@@ -380,21 +381,31 @@ export function OptionsPage() {
               <div className="card-title">Model Runtime</div>
               <div className="field mb-16">
                 <div className="field-label">Select Model (256M - 1B)</div>
-                <select
-                  className="input model-select"
-                  value={selectedModelId}
-                  onChange={(event) => setSelectedModelId(event.target.value)}
-                  disabled={!isExtensionRuntime || isModelLoadingAction}
-                >
-                  {models.map((model) => (
-                    <option key={model.id} value={model.id}>
-                      {model.name} · {model.sizeLabel}
-                    </option>
-                  ))}
-                </select>
+                <div className="model-picker" role="listbox" aria-label="Available FillAI models">
+                  {models.map((model) => {
+                    const isSelected = model.id === selectedModelId;
+                    return (
+                      <button
+                        key={model.id}
+                        type="button"
+                        className={`model-option tappable ${isSelected ? 'active' : ''}`}
+                        onClick={() => setSelectedModelId(model.id)}
+                        disabled={!isExtensionRuntime || isModelLoadingAction}
+                        role="option"
+                        aria-selected={isSelected}
+                      >
+                        <div className="model-option-top">
+                          <span className="model-option-name">{model.name}</span>
+                          <span className="model-option-size">{model.sizeLabel}</span>
+                        </div>
+                        <div className="model-option-desc">{model.recommendedFor}</div>
+                      </button>
+                    );
+                  })}
+                </div>
                 {selectedModelId && (
                   <div className="model-help-text">
-                    {models.find((model) => model.id === selectedModelId)?.recommendedFor || 'Local inference model'}
+                    {selectedModel?.recommendedFor || 'Local inference model'}
                   </div>
                 )}
               </div>
