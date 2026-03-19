@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState } from 'react';
 import { useProfile } from '../store';
 
 type Section = 'basic' | 'professional' | 'links' | 'security';
@@ -8,17 +8,6 @@ export function OptionsPage() {
   const [saved, setSaved]               = useState(false);
   const [saveError, setSaveError]       = useState<string | null>(null);
   const [tab, setTab]                   = useState<Section>('basic');
-  const [apiKey, setApiKey]             = useState('');
-  const [showKey, setShowKey]           = useState(false);
-
-  const isExt = typeof chrome !== 'undefined' && !!chrome?.storage?.local;
-
-  useEffect(() => {
-    if (!isExt) return;
-    chrome.storage.local.get('fillai_api_key')
-      .then((r: Record<string, string>) => setApiKey(r.fillai_api_key ?? ''))
-      .catch(() => {});
-  }, [isExt]);
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -28,9 +17,6 @@ export function OptionsPage() {
   const onSave = async () => {
     try {
       setSaveError(null);
-      if (isExt) {
-        await chrome.storage.local.set({ fillai_api_key: apiKey.trim() });
-      }
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
@@ -203,45 +189,21 @@ export function OptionsPage() {
           {/* Security */}
           <div className={`tab-pane ${tab === 'security' ? 'active' : ''}`}>
             <div className="pane-title">Security</div>
-            <div className="pane-desc">Configure your AI API key for intelligent field generation.</div>
+            <div className="pane-desc">FillAI runs local WebLLM inference in your browser.</div>
 
             <div className="card">
-              <div className="card-title">Gemini API Key</div>
-              <div className="field">
-                <div className="field-label">API Key</div>
-                <div className="input-wrap">
-                  <input className="input" type={showKey ? "text" : "password"} value={apiKey} onChange={e => setApiKey(e.target.value)}
-                    placeholder="AIzaSy…" autoComplete="off" spellCheck="false"
-                    style={{fontFamily: "'Courier New', monospace", letterSpacing: "0.04em"}}/>
-                  <button className="eye-btn" type="button" onClick={() => setShowKey(!showKey)}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      {showKey ? (
-                        <>
-                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                          <line x1="1" y1="1" x2="23" y2="23"/>
-                        </>
-                      ) : (
-                        <>
-                          <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
-                          <circle cx="12" cy="12" r="3"/>
-                        </>
-                      )}
-                    </svg>
-                  </button>
-                </div>
-              </div>
+              <div className="card-title">Local Model Runtime</div>
               <div className="info-box" style={{marginTop: "14px"}}>
-                Stored only on this device in <code>chrome.storage.local</code> — never sent to our servers.
-                <br/><a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Get a free Gemini API key →</a>
+                No cloud API key is required in this branch.
+                <br/>Model weights are downloaded and cached locally by WebLLM.
               </div>
             </div>
 
             <div className="card">
               <div className="card-title">Privacy</div>
               <div className="info-box">
-                Your key and profile are saved to <code>chrome.storage.local</code> on your device only. 
-                The background service worker calls Gemini directly for fields not found in your profile. 
+                Your profile is saved to <code>chrome.storage.local</code> on your device only.
+                FillAI generates responses using a local model in your browser runtime.
                 No data passes through any third-party server.
               </div>
             </div>

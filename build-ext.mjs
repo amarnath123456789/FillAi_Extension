@@ -21,7 +21,6 @@ await build({
   target: ['chrome120'],
   define: {
     'process.env.NODE_ENV': '"production"',
-    'process.env.GEMINI_API_KEY': '""',
   },
   minify: true,
 });
@@ -36,9 +35,11 @@ await build({
   outfile: `${OUT}/background.js`,
   platform: 'browser',
   target: ['chrome120'],
+  alias: {
+    url: './src/shims/url.ts',
+  },
   define: {
     'process.env.NODE_ENV': '"production"',
-    'process.env.GEMINI_API_KEY': '""',
   },
   minify: true,
 });

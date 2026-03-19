@@ -1,17 +1,32 @@
 /// <reference types="vite/client" />
-import { GoogleGenAI } from '@google/genai';
+import { CreateMLCEngine, MLCEngineInterface } from '@mlc-ai/web-llm';
 import { UserProfile } from '../types';
 
-// Lazily instantiated so a missing key doesn't crash the module at load time
-let _devAi: GoogleGenAI | null = null;
-function getClient(explicitKey?: string): GoogleGenAI {
-  // Extension mode: always use the explicitly provided key
-  if (explicitKey) return new GoogleGenAI({ apiKey: explicitKey });
-  // Dev mode: fall back to the env value injected by Vite/esbuild config
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error('GEMINI_API_KEY is not set. Add GEMINI_API_KEY to your .env file and restart the dev server.');
-  if (!_devAi) _devAi = new GoogleGenAI({ apiKey: key });
-  return _devAi;
+const DEFAULT_MODEL = 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
+let _enginePromise: Promise<MLCEngineInterface> | null = null;
+
+function getSelectedModel(): string {
+  const modelFromEnv = (import.meta as ImportMeta & { env?: { VITE_WEBLLM_MODEL?: string } })?.env?.VITE_WEBLLM_MODEL;
+  return typeof modelFromEnv === 'string' && modelFromEnv.trim().length > 0
+    ? modelFromEnv.trim()
+    : DEFAULT_MODEL;
+}
+
+async function getEngine(): Promise<MLCEngineInterface> {
+  if (!_enginePromise) {
+    const model = getSelectedModel();
+    _enginePromise = CreateMLCEngine(model, {
+      initProgressCallback: (report) => {
+        if (report.progress >= 0 && report.progress <= 1) {
+          console.info(`[FillAI][WebLLM] loading ${Math.round(report.progress * 100)}%`);
+        }
+      },
+    }).catch((error: unknown) => {
+      _enginePromise = null;
+      throw error;
+    });
+  }
+  return _enginePromise;
 }
 
 const SYSTEM_INSTRUCTION = `Act as FillAI, an expert for filling job forms.
@@ -28,38 +43,47 @@ RULES:
 function extractModelText(response: unknown): string {
   if (!response || typeof response !== 'object') return '';
 
-  const maybeText = (response as { text?: string }).text;
-  if (typeof maybeText === 'string' && maybeText.trim()) return maybeText.trim();
+  const choices = (response as {
+    choices?: Array<{
+      message?: {
+        content?:
+          | string
+          | Array<{ text?: string; type?: string }>;
+      };
+    }>;
+  }).choices;
 
-  const candidates = (response as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-  }).candidates;
+  if (!Array.isArray(choices) || choices.length === 0) return '';
+  const content = choices[0]?.message?.content;
 
-  if (!Array.isArray(candidates) || candidates.length === 0) return '';
-  const parts = candidates[0]?.content?.parts;
-  if (!Array.isArray(parts)) return '';
+  if (typeof content === 'string') {
+    return content.trim();
+  }
 
-  const joined = parts
-    .map((p) => (typeof p?.text === 'string' ? p.text : ''))
+  if (!Array.isArray(content)) return '';
+  return content
+    .map((part) => (typeof part?.text === 'string' ? part.text : ''))
     .join('')
     .trim();
-
-  return joined;
 }
 
 function classifyLlmError(rawMessage: string): string {
   const low = rawMessage.toLowerCase();
 
-  if (low.includes('resource_exhausted') || low.includes('quota exceeded') || low.includes('code":429') || low.includes('spending cap')) {
-    return 'Gemini API quota/spending cap has been reached for this project. Add billing or use a fresh API key/project, then retry.';
+  if (low.includes('webgpu') || low.includes('adapter') || low.includes('gpu')) {
+    return 'WebLLM requires WebGPU support, but this browser/runtime could not initialize it.';
   }
 
-  if (low.includes('permission denied') || low.includes('api key') || low.includes('unauthorized') || low.includes('forbidden')) {
-    return 'Gemini API key is invalid or does not have permission for this model. Check key validity and project access in AI Studio.';
+  if (low.includes('download') || low.includes('network') || low.includes('fetch')) {
+    return 'Failed to download or load the local WebLLM model assets. Check connection and try again.';
+  }
+
+  if (low.includes('out of memory') || low.includes('insufficient') || low.includes('allocation')) {
+    return 'Not enough memory to run this local model. Try a smaller model or close other heavy tabs/apps.';
   }
 
   if (low.includes('empty response')) {
-    return 'Gemini returned an empty response for this field. Try a shorter instruction or save more profile details.';
+    return 'WebLLM returned an empty response for this field. Try a shorter instruction or save more profile details.';
   }
 
   return rawMessage || 'Failed to generate response.';
@@ -74,7 +98,7 @@ export async function generateFieldResponse(
     id: string;
     type?: string;
   },
-  options?: { userInstruction?: string; apiKey?: string }
+  options?: { userInstruction?: string }
 ): Promise<string> {
   // Build a compact, non-empty-only profile section
   const profileLines: string[] = [];
@@ -122,15 +146,15 @@ ${instructionSection}
 Write the complete, final value for this field:`;
 
   try {
-    const response = await getClient(options?.apiKey).models.generateContent({
-      model: 'gemini-2.5-flash-lite',
-      contents: prompt,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.75,
-        topP: 0.9,
-        maxOutputTokens: 1000,
-      }
+    const engine = await getEngine();
+    const response = await engine.chat.completions.create({
+      messages: [
+        { role: 'system', content: SYSTEM_INSTRUCTION },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0.75,
+      top_p: 0.9,
+      max_tokens: 1000,
     });
 
     const text = extractModelText(response);

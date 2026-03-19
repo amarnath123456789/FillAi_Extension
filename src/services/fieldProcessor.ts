@@ -10,13 +10,12 @@
  *   3. Classify – call the heuristic classifier to identify the field type
  *   4. Heuristic attempt – try the profile-driven fast path
  *   5. Decision engine – choose: heuristic ▸ LLM ▸ none
- *   6. LLM call (when needed) – call Gemini via generateFieldResponse
+ *   6. LLM call (when needed) – call local WebLLM via generateFieldResponse
  *   7. Return – structured FillResult with optional debug payload
  */
 
 import { classifyField, FieldContext, FieldType, ClassifierResult } from '../utils/classifier';
 import { getHeuristicFill } from './heuristics';
-import { generateFieldResponse } from './llm';
 import { UserProfile } from '../types';
 import { getCache, getContextKey, getSimpleKey, setCache } from '../utils/cache';
 
@@ -61,8 +60,6 @@ export type FillResult = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ProcessFieldOptions {
-  /** Gemini API key, forwarded to generateFieldResponse. */
-  apiKey?: string;
   /** Free-text instruction the user may have typed before triggering fill. */
   userInstruction?: string;
   /** Attach a `debug` key to FillResult (default: false). */
@@ -314,7 +311,7 @@ function callLlmViaBackground(
  *
  * @param el      - The input or textarea element to fill.
  * @param profile - The user's saved profile data.
- * @param options - Optional API key, user instruction, and debug flag.
+ * @param options - Optional user instruction and debug flag.
  *
  * @returns A `FillResult` describing the outcome. `value` is null when the
  *          field was skipped or no suitable content could be generated.
@@ -473,12 +470,11 @@ async function callLlm(
   }
 
   try {
-    const value = canUseBackgroundLlm()
-      ? await callLlmViaBackground(profile, llmContext, options.userInstruction)
-      : await generateFieldResponse(profile, llmContext, {
-          apiKey: options.apiKey,
-          userInstruction: options.userInstruction,
-        });
+    if (!canUseBackgroundLlm()) {
+      throw new Error('Background messaging unavailable for LLM generation');
+    }
+
+    const value = await callLlmViaBackground(profile, llmContext, options.userInstruction);
 
     if (canUseCache && cacheKey) {
       await setCache(cacheKey, value);
