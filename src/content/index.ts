@@ -182,8 +182,18 @@ function fillField(field: HTMLInputElement | HTMLTextAreaElement, value: string)
 // ── Background messaging ─────────────────────────────────────────────────────
 function sendToBackground(msg: GenerateRequest): Promise<GenerateResponse> {
   return new Promise((resolve, reject) => {
+    const extensionId =
+      typeof chrome !== 'undefined' && typeof chrome.runtime?.id === 'string' && chrome.runtime.id.length > 0
+        ? chrome.runtime.id
+        : null;
+
+    if (!extensionId || !chrome.runtime?.sendMessage) {
+      reject(new Error('Extension messaging unavailable in this context'));
+      return;
+    }
+
     try {
-      chrome.runtime.sendMessage(msg, (resp: GenerateResponse) => {
+      chrome.runtime.sendMessage(extensionId, msg, (resp: GenerateResponse) => {
         if (chrome.runtime.lastError) {
           reject(new Error(chrome.runtime.lastError.message ?? 'Extension error'));
         } else {

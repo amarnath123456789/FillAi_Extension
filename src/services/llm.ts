@@ -2,31 +2,210 @@
 import { CreateMLCEngine, MLCEngineInterface } from '@mlc-ai/web-llm';
 import { UserProfile } from '../types';
 
+const MODEL_STORAGE_KEY = 'fillai_selected_model';
 const DEFAULT_MODEL = 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
-let _enginePromise: Promise<MLCEngineInterface> | null = null;
 
-function getSelectedModel(): string {
+export type ModelLoadPhase = 'idle' | 'loading' | 'ready' | 'error';
+
+export interface FillAiModelOption {
+  id: string;
+  name: string;
+  sizeLabel: string;
+  recommendedFor: string;
+}
+
+export interface ModelLoadStatus {
+  selectedModel: string;
+  activeModel: string | null;
+  phase: ModelLoadPhase;
+  progress: number;
+  message: string;
+  error: string | null;
+}
+
+const MODEL_OPTIONS: FillAiModelOption[] = [
+  {
+    id: 'SmolLM2-360M-Instruct-q4f16_1-MLC',
+    name: 'SmolLM2 360M Instruct',
+    sizeLabel: '360M',
+    recommendedFor: 'Fast laptops and quick short fields',
+  },
+  {
+    id: 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC',
+    name: 'Qwen2.5 0.5B Instruct',
+    sizeLabel: '0.5B',
+    recommendedFor: 'Balanced speed and instruction-following',
+  },
+  {
+    id: DEFAULT_MODEL,
+    name: 'Llama 3.2 1B Instruct',
+    sizeLabel: '1B',
+    recommendedFor: 'Best overall quality for FillAI prompts',
+  },
+];
+
+let _enginePromise: Promise<MLCEngineInterface> | null = null;
+let _activeModel: string | null = null;
+let _selectedModelCache: string | null = null;
+let _loadStatus: Omit<ModelLoadStatus, 'selectedModel' | 'activeModel'> = {
+  phase: 'idle',
+  progress: 0,
+  message: 'Pick a model and click load.',
+  error: null,
+};
+
+function hasLocalStorageApi(): boolean {
+  return typeof chrome !== 'undefined' && !!chrome.storage?.local;
+}
+
+function isAllowedModel(modelId: string): boolean {
+  return MODEL_OPTIONS.some((model) => model.id === modelId);
+}
+
+async function readSelectedModelFromStorage(): Promise<string | null> {
+  if (!hasLocalStorageApi()) return null;
+  const data = await chrome.storage.local.get(MODEL_STORAGE_KEY);
+  const modelId = data?.[MODEL_STORAGE_KEY];
+  return typeof modelId === 'string' ? modelId : null;
+}
+
+async function persistSelectedModel(modelId: string): Promise<void> {
+  if (!hasLocalStorageApi()) return;
+  await chrome.storage.local.set({ [MODEL_STORAGE_KEY]: modelId });
+}
+
+function setLoadStatus(
+  patch: Partial<Omit<ModelLoadStatus, 'selectedModel' | 'activeModel'>>
+): void {
+  _loadStatus = {
+    ..._loadStatus,
+    ...patch,
+  };
+}
+
+function getProgressMessage(reportText?: string): string {
+  if (reportText && reportText.trim()) return reportText.trim();
+  return 'Downloading and initializing model...';
+}
+
+async function getSelectedModel(): Promise<string> {
+  if (_selectedModelCache) return _selectedModelCache;
+
+  const savedModel = await readSelectedModelFromStorage();
+  if (savedModel && isAllowedModel(savedModel)) {
+    _selectedModelCache = savedModel;
+    return savedModel;
+  }
+
   const modelFromEnv = (import.meta as ImportMeta & { env?: { VITE_WEBLLM_MODEL?: string } })?.env?.VITE_WEBLLM_MODEL;
-  return typeof modelFromEnv === 'string' && modelFromEnv.trim().length > 0
+  const fallbackModel = typeof modelFromEnv === 'string' && modelFromEnv.trim().length > 0
     ? modelFromEnv.trim()
     : DEFAULT_MODEL;
+  const resolvedModel = isAllowedModel(fallbackModel) ? fallbackModel : DEFAULT_MODEL;
+
+  _selectedModelCache = resolvedModel;
+  await persistSelectedModel(resolvedModel);
+  return resolvedModel;
+}
+
+export function getFillAiModelOptions(): FillAiModelOption[] {
+  return MODEL_OPTIONS;
+}
+
+export async function setSelectedModel(modelId: string): Promise<void> {
+  if (!isAllowedModel(modelId)) {
+    throw new Error('Unsupported model selection.');
+  }
+
+  _selectedModelCache = modelId;
+  await persistSelectedModel(modelId);
+
+  if (_activeModel && _activeModel !== modelId) {
+    _enginePromise = null;
+    _activeModel = null;
+    setLoadStatus({
+      phase: 'idle',
+      progress: 0,
+      message: 'Model changed. Click load to initialize.',
+      error: null,
+    });
+  }
+}
+
+export async function getModelLoadStatus(): Promise<ModelLoadStatus> {
+  const selectedModel = await getSelectedModel();
+  return {
+    selectedModel,
+    activeModel: _activeModel,
+    ..._loadStatus,
+  };
+}
+
+async function createEngineForModel(model: string): Promise<MLCEngineInterface> {
+  setLoadStatus({
+    phase: 'loading',
+    progress: 0,
+    message: 'Starting model load...',
+    error: null,
+  });
+
+  _enginePromise = CreateMLCEngine(model, {
+    initProgressCallback: (report) => {
+      const normalizedProgress = report.progress >= 0 && report.progress <= 1
+        ? report.progress
+        : 0;
+      setLoadStatus({
+        phase: 'loading',
+        progress: normalizedProgress,
+        message: getProgressMessage(report.text),
+        error: null,
+      });
+      if (normalizedProgress >= 0 && normalizedProgress <= 1) {
+        console.info(`[FillAI][WebLLM] loading ${Math.round(normalizedProgress * 100)}%`);
+      }
+    },
+  })
+    .then((engine) => {
+      _activeModel = model;
+      setLoadStatus({
+        phase: 'ready',
+        progress: 1,
+        message: 'Model loaded. FillAI is ready.',
+        error: null,
+      });
+      return engine;
+    })
+    .catch((error: unknown) => {
+      _enginePromise = null;
+      _activeModel = null;
+      const rawMessage = error instanceof Error ? error.message : String(error);
+      setLoadStatus({
+        phase: 'error',
+        progress: 0,
+        message: 'Model load failed.',
+        error: classifyLlmError(rawMessage),
+      });
+      throw error;
+    });
+
+  return _enginePromise;
+}
+
+export async function loadSelectedModelEngine(): Promise<void> {
+  const model = await getSelectedModel();
+  if (_enginePromise && _activeModel === model) {
+    await _enginePromise;
+    return;
+  }
+  await createEngineForModel(model);
 }
 
 async function getEngine(): Promise<MLCEngineInterface> {
-  if (!_enginePromise) {
-    const model = getSelectedModel();
-    _enginePromise = CreateMLCEngine(model, {
-      initProgressCallback: (report) => {
-        if (report.progress >= 0 && report.progress <= 1) {
-          console.info(`[FillAI][WebLLM] loading ${Math.round(report.progress * 100)}%`);
-        }
-      },
-    }).catch((error: unknown) => {
-      _enginePromise = null;
-      throw error;
-    });
+  const selectedModel = await getSelectedModel();
+  if (_enginePromise && _activeModel === selectedModel) {
+    return _enginePromise;
   }
-  return _enginePromise;
+  return createEngineForModel(selectedModel);
 }
 
 const SYSTEM_INSTRUCTION = `Act as FillAI, an expert for filling job forms.

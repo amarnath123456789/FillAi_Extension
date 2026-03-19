@@ -121,3 +121,11 @@ export async function setCache(key: string, value: string): Promise<void> {
 
   await saveStore(store);
 }
+
+export async function clearCache(): Promise<void> {
+  if (typeof chrome === 'undefined' || !chrome.storage?.local) {
+    return;
+  }
+
+  await chrome.storage.local.remove(STORAGE_KEY);
+}

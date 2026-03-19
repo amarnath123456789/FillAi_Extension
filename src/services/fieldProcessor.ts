@@ -242,7 +242,12 @@ function buildResult(
 }
 
 function canUseBackgroundLlm(): boolean {
-  return typeof chrome !== 'undefined' && !!chrome.runtime?.sendMessage;
+  return (
+    typeof chrome !== 'undefined' &&
+    !!chrome.runtime?.sendMessage &&
+    typeof chrome.runtime.id === 'string' &&
+    chrome.runtime.id.length > 0
+  );
 }
 
 function callLlmViaBackground(
@@ -263,7 +268,9 @@ function callLlmViaBackground(
     }
 
     try {
+      const extensionId = chrome.runtime.id;
       chrome.runtime.sendMessage(
+        extensionId,
         {
           type: 'FILLAI_GENERATE',
           profile,
