@@ -468,7 +468,12 @@ async function callLlm(
   if (canUseCache) {
     cacheKey = SIMPLE_CACHE_TYPES.has(type)
       ? getSimpleKey(type, profile)
-      : getContextKey(type, context.label ?? '');
+      : getContextKey(type, {
+          label: context.label ?? '',
+          placeholder: context.placeholder ?? '',
+          name: context.name ?? '',
+          id: context.id ?? '',
+        });
 
     const cached = await getCache(cacheKey);
     if (cached) {
@@ -484,7 +489,7 @@ async function callLlm(
     const value = await callLlmViaBackground(profile, llmContext, options.userInstruction);
 
     if (canUseCache && cacheKey) {
-      await setCache(cacheKey, value);
+      await setCache(cacheKey, value, { bypassMinLength: true });
     }
 
     const conf = llmConfidence(type);

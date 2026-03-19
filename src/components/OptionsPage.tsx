@@ -34,6 +34,11 @@ type ModelStatusResponse = {
   status?: ModelLoadStatus;
 };
 
+type ClearCacheResponse = {
+  success: boolean;
+  error?: string;
+};
+
 export function OptionsPage() {
   const { profile, setProfile } = useProfile();
   const [saved, setSaved]               = useState(false);
@@ -197,7 +202,16 @@ export function OptionsPage() {
     try {
       setSaveError(null);
       setIsClearingCache(true);
-      await clearCache();
+
+      if (isExtensionRuntime) {
+        const response = await sendMessage<ClearCacheResponse>({ type: 'FILLAI_CLEAR_CACHE' });
+        if (!response.success) {
+          throw new Error(response.error || 'Failed to clear cache.');
+        }
+      } else {
+        await clearCache();
+      }
+
       setSaved(true);
       setTimeout(() => setSaved(false), 1800);
     } catch (err) {

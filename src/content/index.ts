@@ -115,10 +115,14 @@ const SIMPLE_CACHE_TYPES: ReadonlySet<FieldType> = new Set([
 
 type FillMode = 'profile' | 'instruction' | 'ai' | 'cache';
 
-function getCacheKeyForType(type: FieldType, profile: UserProfile, label: string): string {
+function getCacheKeyForType(
+  type: FieldType,
+  profile: UserProfile,
+  fieldContext: { label: string; placeholder: string; name: string; id: string }
+): string {
   return SIMPLE_CACHE_TYPES.has(type)
     ? getSimpleKey(type, profile)
-    : getContextKey(type, label);
+    : getContextKey(type, fieldContext);
 }
 
 // ── Field eligibility ────────────────────────────────────────────────────────
@@ -153,7 +157,11 @@ function extractContext(field: HTMLInputElement | HTMLTextAreaElement) {
   }
   if (!label) {
     const wrap = field.closest('label');
-    if (wrap) label = (wrap.textContent ?? '').replace(field.value, '').trim();
+    if (wrap) {
+      const clone = wrap.cloneNode(true) as HTMLElement;
+      clone.querySelectorAll('input, textarea, select').forEach((n) => n.remove());
+      label = clone.textContent?.trim() ?? '';
+    }
   }
   if (!label) label = field.getAttribute('aria-label')?.trim() ?? '';
   if (!label) {
@@ -456,7 +464,12 @@ async function handleClick(e: MouseEvent) {
 
     if (!result) {
       if (canUseCache) {
-        cacheKey = getCacheKeyForType(classifierResult.type, profile, ctx.label);
+        cacheKey = getCacheKeyForType(classifierResult.type, profile, {
+          label: ctx.label,
+          placeholder: ctx.placeholder,
+          name: ctx.name,
+          id: ctx.id,
+        });
         const cached = await getCache(cacheKey);
         if (cached) {
           result = cached;
@@ -481,10 +494,15 @@ async function handleClick(e: MouseEvent) {
 
       if (resp.source === 'llm') {
         if (!cacheKey && canUseCache) {
-          cacheKey = getCacheKeyForType(classifierResult.type, profile, ctx.label);
+          cacheKey = getCacheKeyForType(classifierResult.type, profile, {
+            label: ctx.label,
+            placeholder: ctx.placeholder,
+            name: ctx.name,
+            id: ctx.id,
+          });
         }
         if (cacheKey && result) {
-          await setCache(cacheKey, result);
+          await setCache(cacheKey, result, { bypassMinLength: true });
         }
       }
     }

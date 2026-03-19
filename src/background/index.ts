@@ -6,6 +6,7 @@ import {
   setSelectedModel,
 } from '../services/llm';
 import { getHeuristicFill } from '../services/heuristics';
+import { clearCache } from '../utils/cache';
 import type { UserProfile } from '../types';
 
 interface GenerateRequest {
@@ -38,12 +39,17 @@ interface ModelLoadRequest {
   type: 'FILLAI_MODEL_LOAD';
 }
 
+interface ClearCacheRequest {
+  type: 'FILLAI_CLEAR_CACHE';
+}
+
 type IncomingRequest =
   | GenerateRequest
   | ModelListRequest
   | ModelStatusRequest
   | ModelSetRequest
-  | ModelLoadRequest;
+  | ModelLoadRequest
+  | ClearCacheRequest;
 
 let modelLoadPromise: Promise<void> | null = null;
 
@@ -85,6 +91,11 @@ async function handleMessage(msg: IncomingRequest): Promise<unknown> {
       return {
         success: true,
         status: await getModelLoadStatus(),
+      };
+    case 'FILLAI_CLEAR_CACHE':
+      await clearCache();
+      return {
+        success: true,
       };
     default:
       return { success: false, error: 'Unsupported message type.' };

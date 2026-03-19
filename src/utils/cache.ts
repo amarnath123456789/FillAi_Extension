@@ -7,6 +7,13 @@ type CacheEntry = {
 
 type CacheStore = Record<string, CacheEntry>;
 
+export type CacheFieldContext = {
+  label?: string;
+  placeholder?: string;
+  name?: string;
+  id?: string;
+};
+
 const STORAGE_KEY = 'fillai_cache';
 const MAX_ENTRIES = 100;
 const MIN_CACHEABLE_LENGTH = 20;
@@ -40,13 +47,28 @@ export function getSimpleKey(fieldType: string, profile: Pick<UserProfile, 'full
   return `simple:${simpleHash(`${normalizedType}|${normalizedName}`)}`;
 }
 
-export function getContextKey(fieldType: string, fieldLabel = ''): string {
+function normalizeFieldContext(value: string | CacheFieldContext): string {
+  if (typeof value === 'string') {
+    return normalizeText(value);
+  }
+
+  const combined = [
+    value.label || '',
+    value.placeholder || '',
+    value.name || '',
+    value.id || '',
+  ].join(' | ');
+
+  return normalizeText(combined);
+}
+
+export function getContextKey(fieldType: string, fieldContext: string | CacheFieldContext = ''): string {
   const normalizedType = normalizeText(fieldType);
   const normalizedHost = normalizeText(window.location.hostname || '');
   const normalizedPageTitle = normalizeTitle(document.title || '');
-  const normalizedLabel = normalizeText(fieldLabel);
+  const normalizedFieldContext = normalizeFieldContext(fieldContext);
 
-  return `context:${simpleHash(`${normalizedType}|${normalizedHost}|${normalizedPageTitle}|${normalizedLabel}`)}`;
+  return `context:${simpleHash(`${normalizedType}|${normalizedHost}|${normalizedPageTitle}|${normalizedFieldContext}`)}`;
 }
 
 async function getStore(): Promise<CacheStore> {
@@ -98,10 +120,15 @@ export async function getCache(key: string): Promise<string | null> {
   return entry.value;
 }
 
-export async function setCache(key: string, value: string): Promise<void> {
+export async function setCache(
+  key: string,
+  value: string,
+  options?: { bypassMinLength?: boolean }
+): Promise<void> {
   const trimmedValue = value.trim();
   if (!trimmedValue) return;
-  if (trimmedValue.length < MIN_CACHEABLE_LENGTH) return;
+  const bypassMinLength = options?.bypassMinLength === true;
+  if (!bypassMinLength && trimmedValue.length < MIN_CACHEABLE_LENGTH) return;
 
   const store = await getStore();
   store[key] = {

@@ -25,16 +25,10 @@ export interface ModelLoadStatus {
 
 const MODEL_OPTIONS: FillAiModelOption[] = [
   {
-    id: 'SmolLM2-360M-Instruct-q4f16_1-MLC',
-    name: 'SmolLM2 360M Instruct',
-    sizeLabel: '360M',
-    recommendedFor: 'Fast laptops and quick short fields',
-  },
-  {
-    id: 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC',
-    name: 'Qwen2.5 0.5B Instruct',
-    sizeLabel: '0.5B',
-    recommendedFor: 'Balanced speed and instruction-following',
+    id: 'Qwen3-0.6B-q4f16_1-MLC',
+    name: 'Qwen3 0.6B Instruct',
+    sizeLabel: '0.6B',
+    recommendedFor: 'Faster local generation on smaller devices',
   },
   {
     id: DEFAULT_MODEL,
@@ -97,15 +91,9 @@ async function getSelectedModel(): Promise<string> {
     return savedModel;
   }
 
-  const modelFromEnv = (import.meta as ImportMeta & { env?: { VITE_WEBLLM_MODEL?: string } })?.env?.VITE_WEBLLM_MODEL;
-  const fallbackModel = typeof modelFromEnv === 'string' && modelFromEnv.trim().length > 0
-    ? modelFromEnv.trim()
-    : DEFAULT_MODEL;
-  const resolvedModel = isAllowedModel(fallbackModel) ? fallbackModel : DEFAULT_MODEL;
-
-  _selectedModelCache = resolvedModel;
-  await persistSelectedModel(resolvedModel);
-  return resolvedModel;
+  _selectedModelCache = DEFAULT_MODEL;
+  await persistSelectedModel(DEFAULT_MODEL);
+  return DEFAULT_MODEL;
 }
 
 export function getFillAiModelOptions(): FillAiModelOption[] {
@@ -160,9 +148,6 @@ async function createEngineForModel(model: string): Promise<MLCEngineInterface> 
         message: getProgressMessage(report.text),
         error: null,
       });
-      if (normalizedProgress >= 0 && normalizedProgress <= 1) {
-        console.info(`[FillAI][WebLLM] loading ${Math.round(normalizedProgress * 100)}%`);
-      }
     },
   })
     .then((engine) => {
@@ -225,9 +210,7 @@ function extractModelText(response: unknown): string {
   const choices = (response as {
     choices?: Array<{
       message?: {
-        content?:
-          | string
-          | Array<{ text?: string; type?: string }>;
+        content?: string | Array<{ text?: string; type?: string }>;
       };
     }>;
   }).choices;
@@ -235,11 +218,12 @@ function extractModelText(response: unknown): string {
   if (!Array.isArray(choices) || choices.length === 0) return '';
   const content = choices[0]?.message?.content;
 
-  if (typeof content === 'string') {
+  if (typeof content === 'string' && content.trim()) {
     return content.trim();
   }
 
   if (!Array.isArray(content)) return '';
+
   return content
     .map((part) => (typeof part?.text === 'string' ? part.text : ''))
     .join('')
@@ -279,7 +263,6 @@ export async function generateFieldResponse(
   },
   options?: { userInstruction?: string }
 ): Promise<string> {
-  // Build a compact, non-empty-only profile section
   const profileLines: string[] = [];
   const add = (key: string, val: string) => { if (val?.trim()) profileLines.push(`${key}: ${val.trim()}`); };
   add('Full Name', profile.fullName);
@@ -298,7 +281,6 @@ export async function generateFieldResponse(
   add('Achievements', profile.achievements);
   add('Other Details', profile.otherDetails);
 
-
   const fieldLines: string[] = [];
   if (fieldContext.label) fieldLines.push(`Label: ${fieldContext.label}`);
   if (fieldContext.placeholder) fieldLines.push(`Placeholder: ${fieldContext.placeholder}`);
@@ -309,7 +291,6 @@ export async function generateFieldResponse(
   const instructionSection = options?.userInstruction
     ? `\n## CRITICAL: USER DIRECTIVE / INSTRUCTION\n"${options.userInstruction}"\n(You MUST prioritize this instruction. If it asks for specific content like a "hackathon", ensure you bridge it naturally into the job context without stopping abruptly.)\n`
     : '';
-
 
   const bioSection = profile.bio?.trim()
     ? `\n## Applicant's Core Bio / Summary (CRITICAL CONTEXT)\n${profile.bio.trim()}\n(Always ensure the generated text aligns closely with this bio.)\n`
@@ -325,8 +306,7 @@ ${instructionSection}
 Write the complete, final value for this field:`;
 
   try {
-    const engine = await getEngine();
-    const response = await engine.chat.completions.create({
+    const response = await (await getEngine()).chat.completions.create({
       messages: [
         { role: 'system', content: SYSTEM_INSTRUCTION },
         { role: 'user', content: prompt },
@@ -339,7 +319,6 @@ Write the complete, final value for this field:`;
     const text = extractModelText(response);
     if (!text) throw new Error('AI returned an empty response.');
 
-    // Strip any residual markdown code fences the model might still emit
     return text.replace(/^```[^\n]*\n?/, '').replace(/\n?```$/, '').trim();
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
